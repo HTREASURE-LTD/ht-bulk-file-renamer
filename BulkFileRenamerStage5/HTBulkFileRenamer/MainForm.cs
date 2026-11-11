@@ -19,7 +19,6 @@ namespace HTBulkFileRenamer
         readonly CheckBox numbering = new CheckBox(), recursive = new CheckBox(), matchCase = new CheckBox(), useRegex = new CheckBox();
         readonly TextBox filter = new TextBox();
         readonly ToolStripProgressBar progress = new ToolStripProgressBar();
-        readonly Button cancelButton = new Button();
         bool cancelRequested = false, busy = false, updatingGrid = false;
         int sortColumn = -1;
         bool sortDescending = false;
@@ -28,9 +27,10 @@ namespace HTBulkFileRenamer
         readonly ComboBox casing = new ComboBox(), extensionMode = new ComboBox();
         readonly TextBox newExtension = new TextBox();
         readonly ToolStripStatusLabel status = new ToolStripStatusLabel();
-        readonly Button renameButton = new Button(), undoButton = new Button();
+        readonly ToolStripMenuItem renameItem, undoItem, cancelItem;
+        // Menu commands that are disabled while files are being moved.
+        readonly List<ToolStripMenuItem> commandItems = new List<ToolStripMenuItem>();
         readonly TableLayoutPanel settings = new TableLayoutPanel();
-        readonly FlowLayoutPanel actions = new FlowLayoutPanel();
         readonly ToolTip tips = new ToolTip { AutoPopDelay = 15000 };
 
         const int IncludeColumn = 0, OriginalColumn = 1, ProposedColumn = 2, ModifiedColumn = 3, StatusColumn = 4;
@@ -49,12 +49,44 @@ namespace HTBulkFileRenamer
             BackColor = Brand.PageGrey;
             AllowDrop = true;
 
+            // All commands live in the menus. Shortcuts avoid keys the text boxes need (Del, Ctrl+Z, Alt+arrows);
+            // Del and Alt+Up/Down are handled by the file list itself (GridKeyDown) and only shown here.
             var menu = new MenuStrip { BackColor = Color.White };
             var fileMenu = new ToolStripMenuItem("&File");
+            Command(fileMenu, "Add &Files...", AddFilesDialog, Keys.Control | Keys.O);
+            Command(fileMenu, "Add F&older...", AddFolderDialog, Keys.Control | Keys.Shift | Keys.O);
+            fileMenu.DropDownItems.Add(new ToolStripSeparator());
+            Command(fileMenu, "&Load Preset...", LoadPreset);
+            Command(fileMenu, "&Save Preset...", SavePreset, Keys.Control | Keys.S);
+            fileMenu.DropDownItems.Add(new ToolStripSeparator());
+            Command(fileMenu, "&Export Preview to CSV...", ExportPreview, Keys.Control | Keys.E,
+                tip: "Save the preview (folder, original name, proposed name, status) as a CSV file for Excel.");
+            fileMenu.DropDownItems.Add(new ToolStripSeparator());
             fileMenu.DropDownItems.Add("E&xit", null, (s, e) => Close());
+
+            var listMenu = new ToolStripMenuItem("&List");
+            Command(listMenu, "&Remove Selected", RemoveSelected, keyText: "Del");
+            Command(listMenu, "&Clear List", () => { files.Clear(); ClearSortGlyph(); RefreshPreview(); });
+            listMenu.DropDownItems.Add(new ToolStripSeparator());
+            const string orderTip = "Numbering follows the list order. Click the Original filename or Modified header to sort.";
+            Command(listMenu, "Move &Up", () => MoveSelected(-1), keyText: "Alt+Up", tip: orderTip);
+            Command(listMenu, "Move &Down", () => MoveSelected(1), keyText: "Alt+Down", tip: orderTip);
+            listMenu.DropDownItems.Add(new ToolStripSeparator());
+            Command(listMenu, "&Include All", () => SetIncluded(Enumerable.Range(0, files.Count), true));
+            Command(listMenu, "E&xclude All", () => SetIncluded(Enumerable.Range(0, files.Count), false));
+
+            var renameMenu = new ToolStripMenuItem("&Rename");
+            Command(renameMenu, "Refresh &Preview", RefreshPreview, Keys.F5);
+            renameItem = Command(renameMenu, "&Rename Files...", RenameFiles, Keys.Control | Keys.R);
+            renameItem.Font = new Font(renameItem.Font, FontStyle.Bold);
+            undoItem = Command(renameMenu, "&Undo Last Rename", Undo);
+            cancelItem = Command(renameMenu, "&Cancel Rename", () => { cancelRequested = true; status.Text = "Cancellation requested; completing safe rollback..."; });
+            renameMenu.DropDownItems.Add(new ToolStripSeparator());
+            Command(renameMenu, "&History...", OpenHistory, Keys.Control | Keys.H);
+
             var helpMenu = new ToolStripMenuItem("&Help");
             helpMenu.DropDownItems.Add("&About " + Brand.ProductName, null, (s, e) => { using (var about = new AboutForm()) about.ShowDialog(this); });
-            menu.Items.AddRange(new ToolStripItem[] { fileMenu, helpMenu });
+            menu.Items.AddRange(new ToolStripItem[] { fileMenu, listMenu, renameMenu, helpMenu });
             MainMenuStrip = menu;
 
             // Product header band: product icon, name and description on Deep Navy.
@@ -111,37 +143,6 @@ namespace HTBulkFileRenamer
             tips.SetToolTip(useRegex, "Find is a .NET regular expression; use $1, $2 in Replace for captured groups.");
             tips.SetToolTip(numbering, "Adds the number at the start. Put {n} in the prefix or suffix to place it yourself.");
 
-            actions.Dock = DockStyle.Top; actions.Height = 106; actions.Padding = new Padding(15, 8, 10, 6);
-            actions.BackColor = Brand.PageGrey; actions.WrapContents = true;
-            // Brand button roles: Electric Blue for the one primary action, Technology Blue secondary, Edge neutral.
-            var blue = Brand.TechnologyBlue;
-            var neutral = Brand.Edge;
-            var add = MakeButton("Add Files", blue, 100);
-            var addFolder = MakeButton("Add Folder", blue, 105);
-            var remove = MakeButton("Remove", neutral, 85);
-            var clear = MakeButton("Clear List", neutral, 95);
-            var moveUp = MakeButton("Move Up", neutral, 90);
-            var moveDown = MakeButton("Move Down", neutral, 100);
-            var preview = MakeButton("Refresh Preview", blue, 130);
-            renameButton.Text = "Rename Files"; Brand.StyleButton(renameButton, Brand.ElectricBlue, 125);
-            renameButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            undoButton.Text = "Undo Last"; Brand.StyleButton(undoButton, neutral, 100);
-            var savePreset = MakeButton("Save Preset", blue, 105);
-            var loadPreset = MakeButton("Load Preset", blue, 105);
-            var historyButton = MakeButton("History", neutral, 85);
-            var exportButton = MakeButton("Export CSV", neutral, 100);
-            cancelButton.Text = "Cancel"; Brand.StyleButton(cancelButton, neutral, 85);
-            cancelButton.Enabled = false;
-            actions.Controls.AddRange(new Control[] { add, addFolder, remove, clear, moveUp, moveDown, preview, renameButton, undoButton, savePreset, loadPreset, historyButton, exportButton, cancelButton });
-            exportButton.Click += (s, e) => ExportPreview();
-            tips.SetToolTip(exportButton, "Save the preview (folder, original name, proposed name, status) as a CSV file for Excel.");
-            savePreset.Click += (s, e) => SavePreset();
-            loadPreset.Click += (s, e) => LoadPreset();
-            historyButton.Click += (s, e) => OpenHistory();
-            cancelButton.Click += (s, e) => { cancelRequested = true; status.Text = "Cancellation requested; completing safe rollback..."; };
-            tips.SetToolTip(moveUp, "Numbering follows the list order. Click the Original filename or Modified header to sort.");
-            tips.SetToolTip(moveDown, "Numbering follows the list order. Click the Original filename or Modified header to sort.");
-
             grid.Dock = DockStyle.Fill;
             Brand.StyleGrid(grid);
             grid.BorderStyle = BorderStyle.None;
@@ -179,20 +180,10 @@ namespace HTBulkFileRenamer
 
             Controls.Add(grid);
             Controls.Add(footer);
-            Controls.Add(actions);
             Controls.Add(settings);
             Controls.Add(header);
             Controls.Add(menu);
 
-            add.Click += (s, e) => { using (var dlg = new OpenFileDialog { Multiselect = true, Title = "Choose files to rename" }) if (dlg.ShowDialog() == DialogResult.OK) AddFiles(dlg.FileNames); };
-            addFolder.Click += (s, e) => { using (var dlg = new FolderBrowserDialog { Description = "Choose a folder to add" }) if (dlg.ShowDialog() == DialogResult.OK) AddFolder(dlg.SelectedPath); };
-            remove.Click += (s, e) => RemoveSelected();
-            clear.Click += (s, e) => { files.Clear(); ClearSortGlyph(); RefreshPreview(); };
-            moveUp.Click += (s, e) => MoveSelected(-1);
-            moveDown.Click += (s, e) => MoveSelected(1);
-            preview.Click += (s, e) => RefreshPreview();
-            renameButton.Click += (s, e) => RenameFiles();
-            undoButton.Click += (s, e) => Undo();
             foreach (TextBox box in new[] { prefix, suffix, find, replace, newExtension }) box.TextChanged += (s, e) => RefreshPreview();
             extensionMode.SelectedIndexChanged += (s, e) => { newExtension.Enabled = extensionMode.SelectedIndex == 3; RefreshPreview(); };
             foreach (CheckBox box in new[] { numbering, matchCase, useRegex }) box.CheckedChanged += (s, e) => RefreshPreview();
@@ -223,7 +214,7 @@ namespace HTBulkFileRenamer
             };
             string restoreProblem = LoadAppSettings();
             UpdateButtons();
-            status.Text = restoreProblem ?? "Ready — add files or drag files/folders into the window.";
+            status.Text = restoreProblem ?? "Ready — File > Add Files (Ctrl+O), or drag files/folders into the window. Rename > Rename Files (Ctrl+R) when the preview looks right.";
         }
 
         void AddField(TableLayoutPanel panel, string title, Control field, int column, int row, int span)
@@ -236,11 +227,23 @@ namespace HTBulkFileRenamer
             panel.Controls.Add(box, column, row);
             panel.SetColumnSpan(box, span);
         }
-        Button MakeButton(string label, Color color, int width)
+        ToolStripMenuItem Command(ToolStripMenuItem parent, string text, Action action, Keys keys = Keys.None, string keyText = null, string tip = null)
         {
-            var button = new Button { Text = label };
-            Brand.StyleButton(button, color, width);
-            return button;
+            var item = new ToolStripMenuItem(text, null, (s, e) => action()) { ShortcutKeys = keys, ToolTipText = tip };
+            if (keyText != null) item.ShortcutKeyDisplayString = keyText;
+            parent.DropDownItems.Add(item);
+            commandItems.Add(item);
+            return item;
+        }
+        void AddFilesDialog()
+        {
+            using (var dlg = new OpenFileDialog { Multiselect = true, Title = "Choose files to rename" })
+                if (dlg.ShowDialog() == DialogResult.OK) AddFiles(dlg.FileNames);
+        }
+        void AddFolderDialog()
+        {
+            using (var dlg = new FolderBrowserDialog { Description = "Choose a folder to add" })
+                if (dlg.ShowDialog() == DialogResult.OK) AddFolder(dlg.SelectedPath);
         }
         ContextMenuStrip BuildGridMenu()
         {
@@ -614,15 +617,15 @@ namespace HTBulkFileRenamer
                 ? files.Count + " file(s) loaded, " + included + " included — " + changes + " change(s) previewed. Numbering: " + numberingText
                 : "Check: " + problem);
             UpdateButtons();
-            renameButton.Enabled = moves != null && problem == null && changes > 0;
+            renameItem.Enabled = moves != null && problem == null && changes > 0;
         }
         // Lock every input while files are being moved; Application.DoEvents keeps the UI live.
         void UpdateButtons()
         {
-            foreach (Control c in actions.Controls) c.Enabled = !busy;
+            foreach (var item in commandItems) item.Enabled = !busy;
             settings.Enabled = !busy;
-            undoButton.Enabled = !busy && undoBatch.Count > 0;
-            cancelButton.Enabled = busy;
+            undoItem.Enabled = !busy && undoBatch.Count > 0;
+            cancelItem.Enabled = busy;
         }
 
         // Runs RenameExecutor with the window locked, the progress bar updating and Cancel live.
@@ -664,7 +667,7 @@ namespace HTBulkFileRenamer
             string historyWarning = RenameHistory.Append("RENAME", moves, batchId, null);
             for (int i = 0; i < files.Count; i++) files[i].Path = all[i].Item2;
             RefreshPreview();
-            status.Text = "Renamed " + moves.Count + " file(s) successfully. Undo Last, or undo it later from History."
+            status.Text = "Renamed " + moves.Count + " file(s) successfully. To undo: Rename > Undo Last Rename, or later from Rename > History."
                 + (historyWarning == null ? "" : " Warning: " + historyWarning);
         }
         void Undo()

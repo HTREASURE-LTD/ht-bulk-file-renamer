@@ -11,6 +11,12 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 - Inno Setup installer source script and build instructions.
 
 ### New in Stage 5
+- **Menus instead of the button bar**, giving the file list more room:
+  - **File**: Add Files (Ctrl+O), Add Folder (Ctrl+Shift+O), Load/Save Preset (Ctrl+S), Export Preview to CSV (Ctrl+E), Exit.
+  - **List**: Remove Selected (Del), Clear List, Move Up/Down (Alt+Up/Down), Include/Exclude All.
+  - **Rename**: Refresh Preview (F5), **Rename Files (Ctrl+R)**, Undo Last Rename, Cancel Rename, History (Ctrl+H).
+
+  Del and Alt+arrows act on the file list only, and Undo has no Ctrl+Z, so text boxes keep their normal keys. While a rename runs, every command except Cancel Rename is disabled.
 - **Extension options.** **Extension**: Keep original, lowercase, UPPERCASE, or Replace with… a **New extension** (with or without the dot; leave it empty to remove the extension). Find/replace, tokens and filename case still never touch the extension.
 - **`{taken}` token**: the photo's "date taken" from EXIF (JPEG/TIFF), e.g. `{taken:yyyyMMdd}_`. Files without one use their modified date and show **Pending (no photo date)**. Photo dates are read the first time `{taken}` is used, so a large list may pause briefly then.
 - **Long paths.** The app now declares long-path support. Where Windows long paths are turned on (`LongPathsEnabled`, Windows 10 1607+), paths of 260+ characters can be renamed. Where they aren't, the preview refuses them with a clear message — including folders so deep that the temporary name used during a rename wouldn't fit (previously that failed mid-rename and rolled back).
