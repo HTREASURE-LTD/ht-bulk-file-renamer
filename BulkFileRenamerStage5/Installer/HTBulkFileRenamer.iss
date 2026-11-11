@@ -6,7 +6,7 @@
 #define ProductId      "bulk-file-renamer"
 #define ProductName    "HT Bulk File Renamer"
 #define ProductExe     "HTBulkFileRenamer.exe"
-#define ProductVersion "0.4.0"
+#define ProductVersion "0.5.0"
 #define Publisher      "HTREASURE LTD"
 #define CopyrightYear  GetDateTimeString('yyyy', '', '')
 #define Copyright      "Copyright © " + CopyrightYear + " HTREASURE LTD. All rights reserved."
@@ -57,6 +57,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#ExePath}"; DestDir: "{app}"; Flags: ignoreversion
+; Runtime settings (long path handling) live in the .exe.config next to the exe.
+Source: "{#ExePath}.config"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#ProductName}"; Filename: "{app}\{#ProductExe}"

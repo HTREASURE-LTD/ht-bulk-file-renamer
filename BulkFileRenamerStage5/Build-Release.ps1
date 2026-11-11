@@ -1,8 +1,10 @@
-# Run from the Stage 4 root folder in PowerShell
+# Run from the Stage 5 root folder in PowerShell: runs the tests, then builds Release.
 $ErrorActionPreference = 'Stop'
+$dotnet = 'C:\Program Files\dotnet\dotnet.exe'
+$solution = Join-Path $PSScriptRoot 'HTBulkFileRenamer.slnx'
 $project = Join-Path $PSScriptRoot 'HTBulkFileRenamer\HTBulkFileRenamer.csproj'
-& 'C:\Program Files\dotnet\dotnet.exe' restore $project
-if ($LASTEXITCODE -ne 0) { throw 'Restore failed' }
-& 'C:\Program Files\dotnet\dotnet.exe' build $project -c Release --no-restore
+& $dotnet test $solution
+if ($LASTEXITCODE -ne 0) { throw 'Tests failed; not building a release.' }
+& $dotnet build $project -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
-Write-Host 'Release build complete. Compile Installer\HTBulkFileRenamer.iss with Inno Setup.'
+Write-Host 'Tests passed and Release build complete. Compile Installer\HTBulkFileRenamer.iss with Inno Setup.'

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="HTBulkFileRenamer.Tests/HTBulkFileRenamer.Tests.csproj" />
+  <Project Path="HTBulkFileRenamer/HTBulkFileRenamer.csproj" />
+</Solution>

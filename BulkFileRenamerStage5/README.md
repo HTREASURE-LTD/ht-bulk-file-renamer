@@ -1,4 +1,4 @@
-# HT Bulk File Renamer — Stage 4 (source release)
+# HT Bulk File Renamer — Stage 5 (source release, version 0.5.0)
 
 An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 
@@ -9,6 +9,15 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 - Save/load XML presets (`.htpreset`), rename/undo history, progress and cancel-before-commit.
 - Staged rename with best-effort rollback on failure.
 - Inno Setup installer source script and build instructions.
+
+### New in Stage 5
+- **Extension options.** **Extension**: Keep original, lowercase, UPPERCASE, or Replace with… a **New extension** (with or without the dot; leave it empty to remove the extension). Find/replace, tokens and filename case still never touch the extension.
+- **`{taken}` token**: the photo's "date taken" from EXIF (JPEG/TIFF), e.g. `{taken:yyyyMMdd}_`. Files without one use their modified date and show **Pending (no photo date)**. Photo dates are read the first time `{taken}` is used, so a large list may pause briefly then.
+- **Long paths.** The app now declares long-path support. Where Windows long paths are turned on (`LongPathsEnabled`, Windows 10 1607+), paths of 260+ characters can be renamed. Where they aren't, the preview refuses them with a clear message — including folders so deep that the temporary name used during a rename wouldn't fit (previously that failed mid-rename and rolled back).
+- **Export CSV** saves the preview (include, folder, original name, proposed name, modified, status) as UTF-8 CSV for Excel.
+- **Automated tests.** `HTBulkFileRenamer.Tests` (MSTest, 24 tests) covers naming rules, validation, history, EXIF reading and the real file moves: swaps, three-way cycles, case-only renames, cancel, and rollback when a file is locked. The file-moving code moved out of the window into `RenameExecutor.cs` so it can be tested.
+- Presets and saved settings gain `ExtensionMode`/`NewExtension`; older presets load with the extension kept.
+- Installer now also installs `HTBulkFileRenamer.exe.config`.
 
 ### New in Stage 4
 - **Choose and order files.** Each row has an **Include** checkbox; excluded files keep their name and don't use a number. Reorder with **Move Up / Move Down** (or Alt+Up / Alt+Down), or click the **Original filename** (natural order: 2 before 10) or **Modified** header to sort. Right-click for include/exclude all. Space toggles the selected rows; Delete removes them from the list.
@@ -30,19 +39,23 @@ Applied from the HTREASURE LTD brand kit (`C:\HTSoftware\Htreasure_files\HTREASU
 - The executable is **not** code-signed; don't describe it as signed until a certificate is configured.
 
 ### Source layout
+- `HTBulkFileRenamer.slnx` — solution with the app and the tests.
 - `Program.cs` — entry point.
-- `MainForm.cs` — main window, file list, presets, rename/undo execution.
-- `RenameEngine.cs` — naming rules (find/replace, tokens, numbering) and validation; no UI.
+- `MainForm.cs` — main window, file list, presets, export, rename/undo commands.
+- `RenameEngine.cs` — naming rules (find/replace, tokens, numbering, extension), photo dates, validation, CSV; no UI.
+- `RenameExecutor.cs` — staged file moves with rollback; no UI.
+- `app.manifest`, `App.config` — long-path opt-in.
+- `HTBulkFileRenamer.Tests\` — automated tests.
 - `RenameHistory.cs` — reading/writing `history.tsv` and grouping it into batches.
 - `HistoryForm.cs` — History window.
 - `Brand.cs`, `AboutForm.cs`, `Branding\` — HTREASURE colours, company details, icon/logo and the About box.
 
 ## Build on Windows 11 with Visual Studio 2026
-1. Open `HTBulkFileRenamer\HTBulkFileRenamer.csproj`.
+1. Open `HTBulkFileRenamer.slnx`.
 2. Ensure **.NET desktop development** workload and .NET SDK are installed.
-3. Restore NuGet packages; Build > Rebuild Solution; run Ctrl+F5.
+3. Restore NuGet packages; Build > Rebuild Solution; run Ctrl+F5. Run tests with Test > Run All Tests (or `dotnet test HTBulkFileRenamer.slnx`).
 4. If SDK resolution fails, run `where dotnet` and `dotnet --list-sdks` and verify the x64 SDK appears first.
-5. Expected output: `HTBulkFileRenamer\bin\Release\net462\HTBulkFileRenamer.exe` after selecting Release and building (or run `Build-Release.ps1`).
+5. `Build-Release.ps1` runs the tests and, only if they pass, builds `HTBulkFileRenamer\bin\Release\net462\HTBulkFileRenamer.exe` (+ `.exe.config`).
 
 ## Feature notes and limitations
 - Filter affects **newly added files only**; changing it does not remove files already in the list.
@@ -75,9 +88,13 @@ Applied from the HTREASURE LTD brand kit (`C:\HTSoftware\Htreasure_files\HTREASU
 12. Test a deliberately locked file and verify rollback behaviour.
 13. Test cancel on a large disposable batch and verify no files are lost.
 14. Test on actual target OS VMs before advertising compatibility.
+15. Extension: lowercase on `.JPG` files; Replace with `md`; Replace with empty (extension removed).
+16. Prefix `{taken:yyyyMMdd}_` on camera photos and on non-photos (shows **Pending (no photo date)**).
+17. Export CSV and open it in Excel; check non-English filenames.
+18. With long paths on, rename a file in a folder deeper than 260 characters; with them off, confirm the preview refuses it.
 
 ## Installer
-Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode, then compile `Installer\HTBulkFileRenamer.iss` (version 0.4.0). The installer requires .NET Framework 4.6.2 on the target PC; it does not install the runtime automatically.
+Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode, then compile `Installer\HTBulkFileRenamer.iss` (version 0.5.0). The installer requires .NET Framework 4.6.2 on the target PC; it does not install the runtime automatically.
 
 ## Licensing
 This project is supplied as editable starter source for your own development. Check the licences of all NuGet dependencies, installer tooling, icons and other assets before commercial redistribution. Do not market this build as fully tested or production-ready without completing acceptance tests.

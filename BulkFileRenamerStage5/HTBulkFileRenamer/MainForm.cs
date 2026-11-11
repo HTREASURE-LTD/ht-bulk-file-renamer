@@ -25,7 +25,8 @@ namespace HTBulkFileRenamer
         bool sortDescending = false;
         readonly string settingsPath = Path.Combine(RenameHistory.DataDirectory, "settings.xml");
         readonly NumericUpDown start = new NumericUpDown(), digits = new NumericUpDown();
-        readonly ComboBox casing = new ComboBox();
+        readonly ComboBox casing = new ComboBox(), extensionMode = new ComboBox();
+        readonly TextBox newExtension = new TextBox();
         readonly ToolStripStatusLabel status = new ToolStripStatusLabel();
         readonly Button renameButton = new Button(), undoButton = new Button();
         readonly TableLayoutPanel settings = new TableLayoutPanel();
@@ -62,14 +63,12 @@ namespace HTBulkFileRenamer
             header.Controls.Add(new Label { Text = Brand.ProductName, ForeColor = Color.White, AutoSize = true, Location = new Point(66, 10), Font = new Font("Segoe UI", 14F, FontStyle.Bold), UseMnemonic = false });
             header.Controls.Add(new Label { Text = Brand.ProductDescription, ForeColor = Brand.SilverGrey, AutoSize = true, Location = new Point(68, 38), UseMnemonic = false });
 
-            settings.Dock = DockStyle.Top; settings.Height = 185; settings.Padding = new Padding(15, 10, 15, 5);
-            settings.ColumnCount = 8; settings.RowCount = 3; settings.BackColor = Color.White;
+            settings.Dock = DockStyle.Top; settings.Height = 228; settings.Padding = new Padding(15, 10, 15, 5);
+            settings.ColumnCount = 8; settings.RowCount = 4; settings.BackColor = Color.White;
             for (int i = 0; i < 8; i++) settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12.5F));
-            settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 49));
-            settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 49));
-            settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 49));
+            for (int i = 0; i < 4; i++) settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 49));
             AddField(settings, "Prefix (tokens allowed)", prefix, 0, 0, 2);
-            AddField(settings, "Suffix (before extension, tokens allowed)", suffix, 2, 0, 2);
+            AddField(settings, "Suffix (before extension)", suffix, 2, 0, 2);
             AddField(settings, "Find", find, 4, 0, 2);
             AddField(settings, "Replace with", replace, 6, 0, 2);
             numbering.Text = "Add numbering (001_)"; numbering.AutoSize = true; numbering.Checked = true; numbering.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
@@ -81,7 +80,7 @@ namespace HTBulkFileRenamer
             AddField(settings, "Start number", start, 2, 1, 1);
             AddField(settings, "Digits", digits, 3, 1, 1);
             matchCase.Text = "Match case"; matchCase.AutoSize = true; matchCase.Checked = true; matchCase.Margin = new Padding(0, 3, 12, 0);
-            useRegex.Text = "Regular expression"; useRegex.AutoSize = true; useRegex.Margin = new Padding(0, 3, 0, 0);
+            useRegex.Text = "Use regex"; useRegex.AutoSize = true; useRegex.Margin = new Padding(0, 3, 0, 0);
             var findOptions = new FlowLayoutPanel { WrapContents = false };
             findOptions.Controls.Add(matchCase);
             findOptions.Controls.Add(useRegex);
@@ -90,14 +89,23 @@ namespace HTBulkFileRenamer
             casing.Items.AddRange(new object[] { "Keep original", "lowercase", "UPPERCASE", "Title Case" });
             casing.SelectedIndex = 0;
             AddField(settings, "Filename case", casing, 6, 1, 2);
+            extensionMode.DropDownStyle = ComboBoxStyle.DropDownList;
+            extensionMode.Items.AddRange(new object[] { "Keep original", "lowercase", "UPPERCASE", "Replace with..." });
+            extensionMode.SelectedIndex = 0;
+            AddField(settings, "Extension", extensionMode, 0, 2, 2);
+            newExtension.Enabled = false;
+            AddField(settings, "New extension (empty removes it)", newExtension, 2, 2, 2);
+            var extensionHint = new Label { Text = "Only this setting changes the extension.", AutoSize = true, ForeColor = Brand.MutedText, Padding = new Padding(3, 25, 0, 0) };
+            settings.Controls.Add(extensionHint, 4, 2); settings.SetColumnSpan(extensionHint, 4);
             var extra = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true };
-            extra.Controls.Add(new Label { Text = "File filters (e.g. *.txt;*.jpg):", AutoSize = true, Padding = new Padding(0, 7, 3, 0) });
+            extra.Controls.Add(new Label { Text = "Filters (e.g. *.txt;*.jpg):", AutoSize = true, Padding = new Padding(0, 7, 3, 0) });
             filter.Width = 170; filter.Text = "*.*"; extra.Controls.Add(filter);
-            recursive.Text = "Include subfolders when adding folder"; recursive.AutoSize = true;
+            recursive.Text = "Include subfolders"; recursive.AutoSize = true;
+            tips.SetToolTip(recursive, "When adding a folder, also add files from its subfolders.");
             recursive.Margin = new Padding(18, 6, 0, 0); extra.Controls.Add(recursive);
-            var tokenHint = new Label { Text = "  Tokens: {n} {date} {created} {parent} — e.g. {date:yyyyMMdd}. Extensions are preserved.", AutoSize = true, ForeColor = Brand.MutedText, Padding = new Padding(5, 7, 0, 0) };
+            var tokenHint = new Label { Text = "  Tokens: {n} {date} {created} {taken} {parent}, e.g. {taken:yyyyMMdd}", AutoSize = true, ForeColor = Brand.MutedText, Padding = new Padding(5, 7, 0, 0) };
             extra.Controls.Add(tokenHint);
-            settings.Controls.Add(extra, 0, 2);
+            settings.Controls.Add(extra, 0, 3);
             settings.SetColumnSpan(extra, 8);
             foreach (Control c in new Control[] { prefix, suffix, tokenHint }) tips.SetToolTip(c, RenameEngine.TokenHelp);
             tips.SetToolTip(useRegex, "Find is a .NET regular expression; use $1, $2 in Replace for captured groups.");
@@ -121,9 +129,12 @@ namespace HTBulkFileRenamer
             var savePreset = MakeButton("Save Preset", blue, 105);
             var loadPreset = MakeButton("Load Preset", blue, 105);
             var historyButton = MakeButton("History", neutral, 85);
+            var exportButton = MakeButton("Export CSV", neutral, 100);
             cancelButton.Text = "Cancel"; Brand.StyleButton(cancelButton, neutral, 85);
             cancelButton.Enabled = false;
-            actions.Controls.AddRange(new Control[] { add, addFolder, remove, clear, moveUp, moveDown, preview, renameButton, undoButton, savePreset, loadPreset, historyButton, cancelButton });
+            actions.Controls.AddRange(new Control[] { add, addFolder, remove, clear, moveUp, moveDown, preview, renameButton, undoButton, savePreset, loadPreset, historyButton, exportButton, cancelButton });
+            exportButton.Click += (s, e) => ExportPreview();
+            tips.SetToolTip(exportButton, "Save the preview (folder, original name, proposed name, status) as a CSV file for Excel.");
             savePreset.Click += (s, e) => SavePreset();
             loadPreset.Click += (s, e) => LoadPreset();
             historyButton.Click += (s, e) => OpenHistory();
@@ -182,7 +193,8 @@ namespace HTBulkFileRenamer
             preview.Click += (s, e) => RefreshPreview();
             renameButton.Click += (s, e) => RenameFiles();
             undoButton.Click += (s, e) => Undo();
-            foreach (TextBox box in new[] { prefix, suffix, find, replace }) box.TextChanged += (s, e) => RefreshPreview();
+            foreach (TextBox box in new[] { prefix, suffix, find, replace, newExtension }) box.TextChanged += (s, e) => RefreshPreview();
+            extensionMode.SelectedIndexChanged += (s, e) => { newExtension.Enabled = extensionMode.SelectedIndex == 3; RefreshPreview(); };
             foreach (CheckBox box in new[] { numbering, matchCase, useRegex }) box.CheckedChanged += (s, e) => RefreshPreview();
             start.ValueChanged += (s, e) => RefreshPreview();
             digits.ValueChanged += (s, e) => RefreshPreview();
@@ -411,12 +423,13 @@ namespace HTBulkFileRenamer
 
         XElement SettingsXml(string rootName)
         {
-            return new XElement(rootName, new XAttribute("version", "2"),
+            return new XElement(rootName, new XAttribute("version", "3"),
                 new XElement("Prefix", prefix.Text), new XElement("Suffix", suffix.Text),
                 new XElement("Find", find.Text), new XElement("Replace", replace.Text),
                 new XElement("MatchCase", matchCase.Checked), new XElement("UseRegex", useRegex.Checked),
                 new XElement("Numbering", numbering.Checked), new XElement("Start", start.Value),
                 new XElement("Digits", digits.Value), new XElement("Case", casing.SelectedIndex),
+                new XElement("ExtensionMode", extensionMode.SelectedIndex), new XElement("NewExtension", newExtension.Text),
                 new XElement("Filter", filter.Text), new XElement("Recursive", recursive.Checked));
         }
         void ApplySettingsXml(XElement root)
@@ -431,11 +444,15 @@ namespace HTBulkFileRenamer
             bool recurse = bool.Parse(read("Recursive"));
             bool caseSensitive = readFlag("MatchCase", true);
             bool regex = readFlag("UseRegex", false);
-            if (startValue < start.Minimum || startValue > start.Maximum || digitValue < digits.Minimum || digitValue > digits.Maximum || caseIndex < 0 || caseIndex >= casing.Items.Count)
+            // Stage 4 and earlier presets have no extension settings: keep the extension.
+            int extensionIndex = root.Element("ExtensionMode") == null ? 0 : int.Parse(read("ExtensionMode"));
+            if (startValue < start.Minimum || startValue > start.Maximum || digitValue < digits.Minimum || digitValue > digits.Maximum || caseIndex < 0 || caseIndex >= casing.Items.Count
+                || extensionIndex < 0 || extensionIndex >= extensionMode.Items.Count)
                 throw new InvalidDataException("Preset contains out-of-range values.");
             prefix.Text = read("Prefix"); suffix.Text = read("Suffix");
             find.Text = read("Find"); replace.Text = read("Replace");
             matchCase.Checked = caseSensitive; useRegex.Checked = regex;
+            extensionMode.SelectedIndex = extensionIndex; newExtension.Text = read("NewExtension");
             numbering.Checked = num; start.Value = startValue; digits.Value = digitValue;
             casing.SelectedIndex = caseIndex; filter.Text = read("Filter"); recursive.Checked = recurse;
         }
@@ -515,8 +532,42 @@ namespace HTBulkFileRenamer
             {
                 Prefix = prefix.Text, Suffix = suffix.Text, Find = find.Text, Replace = replace.Text,
                 MatchCase = matchCase.Checked, UseRegex = useRegex.Checked,
-                Numbering = numbering.Checked, Start = (long)start.Value, Digits = (int)digits.Value, Case = casing.SelectedIndex
+                Numbering = numbering.Checked, Start = (long)start.Value, Digits = (int)digits.Value, Case = casing.SelectedIndex,
+                ExtensionMode = extensionMode.SelectedIndex, NewExtension = newExtension.Text
             };
+        }
+        // Status text shared by the grid and the CSV export.
+        static string RowStatus(FileEntry file, Tuple<string, string> move, bool usesTaken)
+        {
+            if (!file.Included) return "Excluded";
+            if (move == null) return "—";
+            if (string.Equals(move.Item1, move.Item2, StringComparison.Ordinal)) return "Unchanged";
+            return usesTaken && file.Taken == null ? "Pending (no photo date)" : "Pending";
+        }
+        void ExportPreview()
+        {
+            if (busy) return;
+            if (files.Count == 0) { status.Text = "Nothing to export — add files first."; return; }
+            var options = CurrentOptions();
+            List<Tuple<string, string>> moves;
+            try { moves = RenameEngine.PlanMoves(files, options); }
+            catch (Exception ex) { MessageBox.Show("Invalid rename settings: " + ex.Message, "Export CSV", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            bool usesTaken = RenameEngine.UsesToken(options, "taken");
+            var rows = new List<string[]> { new[] { "Include", "Folder", "Original filename", "Proposed filename", "Modified", "Status" } };
+            for (int i = 0; i < files.Count; i++)
+                rows.Add(new[] { files[i].Included ? "Yes" : "No", Path.GetDirectoryName(files[i].Path), Path.GetFileName(files[i].Path),
+                    Path.GetFileName(moves[i].Item2), files[i].Modified.ToString("yyyy-MM-dd HH:mm"), RowStatus(files[i], moves[i], usesTaken) });
+            using (var dialog = new SaveFileDialog { Title = "Export preview", Filter = "CSV file (*.csv)|*.csv", DefaultExt = "csv", FileName = "rename-preview.csv" })
+            {
+                if (dialog.ShowDialog() != DialogResult.OK) return;
+                try
+                {
+                    // UTF-8 with BOM so Excel shows non-English filenames correctly.
+                    File.WriteAllText(dialog.FileName, RenameEngine.ToCsv(rows), new System.Text.UTF8Encoding(true));
+                    status.Text = "Preview exported: " + dialog.FileName;
+                }
+                catch (Exception ex) { MessageBox.Show("Could not export preview: " + ex.Message, "Export CSV", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            }
         }
         void OpenHistory()
         {
@@ -532,6 +583,7 @@ namespace HTBulkFileRenamer
             try { moves = RenameEngine.PlanMoves(files, options); }
             catch (Exception ex) { settingsError = "Invalid rename settings: " + ex.Message; }
             string problem = moves == null ? null : RenameEngine.Validate(moves);
+            bool usesTaken = RenameEngine.UsesToken(options, "taken");
             updatingGrid = true;
             try
             {
@@ -546,12 +598,11 @@ namespace HTBulkFileRenamer
                 {
                     var file = files[i];
                     var row = grid.Rows[i];
-                    bool changed = moves != null && !string.Equals(moves[i].Item1, moves[i].Item2, StringComparison.Ordinal);
                     row.Cells[IncludeColumn].Value = file.Included;
                     row.Cells[OriginalColumn].Value = Path.GetFileName(file.Path);
                     row.Cells[ProposedColumn].Value = moves == null ? "" : Path.GetFileName(moves[i].Item2);
                     row.Cells[ModifiedColumn].Value = file.Modified.ToString("yyyy-MM-dd HH:mm");
-                    row.Cells[StatusColumn].Value = !file.Included ? "Excluded" : moves == null ? "—" : changed ? "Pending" : "Unchanged";
+                    row.Cells[StatusColumn].Value = RowStatus(file, moves == null ? null : moves[i], usesTaken);
                     row.DefaultCellStyle.ForeColor = file.Included ? Brand.DeepNavy : Brand.MutedText;
                 }
             }
@@ -574,58 +625,18 @@ namespace HTBulkFileRenamer
             cancelButton.Enabled = busy;
         }
 
-        // Stage all changed sources under temporary names to safely handle swaps and cycles.
-        // On error, attempt to roll back both completed and staged moves.
+        // Runs RenameExecutor with the window locked, the progress bar updating and Cancel live.
         bool ApplyMoves(List<Tuple<string, string>> moves, out string error)
         {
-            error = null;
             cancelRequested = false;
             busy = true;
             UpdateButtons();
             progress.Value = 0;
             progress.Maximum = Math.Max(1, moves.Count * 2);
-            int completed = 0;
-            var staged = new List<Tuple<string, string, string>>();
             try
             {
-                foreach (var move in moves)
-                {
-                    Application.DoEvents();
-                    if (cancelRequested) throw new OperationCanceledException("Operation cancelled by user.");
-                    string temp;
-                    do { temp = Path.Combine(Path.GetDirectoryName(move.Item1), ".ht-renamer-" + Guid.NewGuid().ToString("N") + ".tmp"); }
-                    while (File.Exists(temp) || Directory.Exists(temp));
-                    File.Move(move.Item1, temp);
-                    staged.Add(Tuple.Create(move.Item1, temp, move.Item2));
-                    progress.Value = ++completed;
-                }
-                foreach (var item in staged)
-                {
-                    // Do not interrupt the commit phase: finish moving staged files first.
-                    File.Move(item.Item2, item.Item3);
-                    progress.Value = ++completed;
-                    Application.DoEvents();
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                var failures = new List<string>();
-                foreach (var item in staged.AsEnumerable().Reverse())
-                {
-                    try
-                    {
-                        if (File.Exists(item.Item3) && !File.Exists(item.Item2)) File.Move(item.Item3, item.Item2);
-                    }
-                    catch (Exception rollbackEx) { failures.Add(rollbackEx.Message); }
-                }
-                foreach (var item in staged.AsEnumerable().Reverse())
-                {
-                    try { if (File.Exists(item.Item2) && !File.Exists(item.Item1)) File.Move(item.Item2, item.Item1); }
-                    catch (Exception rollbackEx) { failures.Add(rollbackEx.Message); }
-                }
-                error = ex.Message + (failures.Count > 0 ? "\nRollback incomplete. Check the folder for .ht-renamer temporary files.\n" + string.Join("; ", failures) : "\nRollback attempted; verify your files.");
-                return false;
+                return RenameExecutor.Apply(moves, () => cancelRequested,
+                    done => { progress.Value = Math.Min(done, progress.Maximum); Application.DoEvents(); }, out error);
             }
             finally
             {
