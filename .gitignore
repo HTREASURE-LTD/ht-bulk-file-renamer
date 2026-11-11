@@ -1,0 +1,10 @@
+# Build output and IDE state
+bin/
+obj/
+.vs/
+*.user
+Installer/Output/
+
+# Old copies of the reviewed Stage 3 source and its build, superseded by the stage folders
+/Program.cs
+/HTBulkFileRenamer.exe

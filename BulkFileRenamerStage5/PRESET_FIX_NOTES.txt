@@ -1,0 +1,5 @@
+Stage 3 Preset Fix
+
+The Stage 3 action toolbar was a single 58px row with WrapContents=false. At normal window widths, Save Preset and Load Preset could be outside the visible area. This fix makes the toolbar two rows tall and enables wrapping. Save/Load now display the selected file path in the status bar.
+
+To test: open the project, Rebuild Solution, Ctrl+F5, set Prefix=TEST_, Save Preset to Desktop as Test.htpreset, change Prefix to OTHER_, Load Preset Test.htpreset and verify Prefix returns to TEST_. Presets save settings, not selected files.

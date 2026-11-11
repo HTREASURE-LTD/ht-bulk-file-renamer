@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<HTRenamePreset version="1">
+  <Prefix></Prefix>
+  <Suffix></Suffix>
+  <Find></Find>
+  <Replace></Replace>
+  <Numbering>true</Numbering>
+  <Start>1</Start>
+  <Digits>3</Digits>
+  <Case>0</Case>
+  <Filter>*.*</Filter>
+  <Recursive>false</Recursive>
+</HTRenamePreset>
