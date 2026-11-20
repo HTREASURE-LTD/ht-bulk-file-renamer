@@ -83,7 +83,8 @@ Company identity and assets come from the brand kit in the template submodule (`
 1. Clone with submodules: `git clone --recurse-submodules https://github.com/HTREASURE-LTD/ht-bulk-file-renamer.git` (or `git submodule update --init` in an existing clone). Both submodules are private HTREASURE-LTD repositories.
 2. Install the **.NET 10 SDK** (10.0.100 or later) and Visual Studio 2026 with the **.NET desktop development** workload.
 3. Open `HTBulkFileRenamer.slnx`; Build > Rebuild Solution; run Ctrl+F5. Run tests with Test > Run All Tests (or `dotnet test HTBulkFileRenamer.slnx`).
-4. `Build-Release.ps1` runs the tests and, only if they pass, publishes a self-contained win-x64 build to `HTBulkFileRenamer\bin\publish\win-x64` (about 120 MB, includes the .NET runtime).
+4. `Build-Release.ps1` builds the whole release into `Installer\Output\v<version>`: it runs the tests and, only if they pass, publishes a self-contained win-x64 build (about 120 MB, includes the .NET runtime), signs it when code signing is configured, compiles the installer, builds the portable zip (with `LICENSE.txt`), verifies signatures and writes `SHA256SUMS.txt`. Needs Inno Setup 6.3+.
+   - **Code signing (Authenticode).** Set the `HT_SIGN_THUMBPRINT`/`HT_TIMESTAMP_URL` (certificate authority) or `HT_ARTIFACT_SIGNING_*` (Azure Artifact Signing) environment variables, the same as HT ISO Ripper. Without them the release is **unsigned** and the script warns. See [docs/CODE-SIGNING.md](docs/CODE-SIGNING.md), including the eligibility check for Artifact Signing.
    - **Advisory snapshot signing (standards requirement).** Release builds must sign the bundled advisory snapshot: `.\Build-Release.ps1 -SigningKey D:\offline\advisory.pem -KeyId <key id>`. HTREASURE has not provisioned a production signing key yet (`ht-software-standards/security/keys/trusted-keys.json` is empty), so without `-SigningKey` the script builds an **internal** release (`HTRequireSignedSnapshot=false`), and Security Advisory History shows "Development build: the bundled advisory snapshot is not signed".
    - The script sets the runtime identifier inside the `.csproj` (`HTSelfContainedRelease`), not on the `dotnet publish` command line, because command-line `-r`/`--self-contained` also reach the standards CLI build and break `HTREASURE.Standards.targets`.
 5. When the advisory service and release feed exist, set `<HTAdvisoryServiceUrl>` and `<HTReleaseFeedUrl>` in `HTBulkFileRenamer.csproj`.
@@ -127,7 +128,7 @@ Company identity and assets come from the brand kit in the template submodule (`
 21. Install over 0.6.x and check the upgrade, the licence page and uninstall.
 
 ## Installer
-Install Inno Setup 6.3+ from https://jrsoftware.org/isinfo.php, run `Build-Release.ps1`, then compile `Installer\HTBulkFileRenamer.iss` (version 0.7.0). Setup installs the self-contained publish folder (no separate .NET install) and needs 64-bit Windows 10 version 1809 or later.
+Install Inno Setup 6.3+ from https://jrsoftware.org/isinfo.php and run `Build-Release.ps1`, which compiles `Installer\HTBulkFileRenamer.iss` (version 0.7.0) and signs Setup and its uninstaller when code signing is configured. Setup installs the self-contained publish folder (no separate .NET install) and needs 64-bit Windows 10 version 1809 or later.
 
 ## Licensing
 **End-User Licence Agreement:** `LICENSE` at the repository root (HTREASURE LTD EULA v1.0, based on the HT ISO Ripper agreement: free for personal, non-commercial use; other use needs a written licence). It is the single source for every copy:

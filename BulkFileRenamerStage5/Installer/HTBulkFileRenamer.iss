@@ -52,9 +52,12 @@ WizardStyle=modern
 WizardImageFile=Images\inno-wizard-large-164x314.bmp,Images\inno-wizard-large-246x459.bmp,Images\inno-wizard-large-328x604.bmp
 WizardSmallImageFile=Images\inno-wizard-small-55x55.bmp,Images\inno-wizard-small-83x80.bmp,Images\inno-wizard-small-110x106.bmp
 
-; Code signing: leave disabled until HTREASURE LTD has a real code-signing certificate.
-; SignTool=htsign $f
-; SignedUninstaller=yes
+; Code signing: Build-Release.ps1 defines SignTool (and passes the matching /Shtsign=... command) when HTREASURE LTD's
+; certificate or Azure Artifact Signing is configured, so Setup and its uninstaller are signed. See docs\CODE-SIGNING.md.
+#ifdef SignTool
+SignTool={#SignTool}
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
