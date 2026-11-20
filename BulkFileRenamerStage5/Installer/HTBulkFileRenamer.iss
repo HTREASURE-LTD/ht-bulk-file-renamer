@@ -7,7 +7,7 @@
 #define ProductId      "bulk-file-renamer"
 #define ProductName    "HT Bulk File Renamer"
 #define ProductExe     "HTBulkFileRenamer.exe"
-#define ProductVersion "0.7.0"
+#define ProductVersion "0.7.1"
 #define Publisher      "HTREASURE LTD"
 #define CopyrightYear  GetDateTimeString('yyyy', '', '')
 #define Copyright      "Copyright © " + CopyrightYear + " HTREASURE LTD. All rights reserved."

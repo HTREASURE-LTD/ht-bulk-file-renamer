@@ -13,7 +13,7 @@
     <Product>HT Bulk File Renamer</Product>
     <AssemblyTitle>HT Bulk File Renamer</AssemblyTitle>
     <Description>Rename many files at once with previewed, reversible rules.</Description>
-    <Version>0.7.0</Version>
+    <Version>0.7.1</Version>
     <!-- Icons/Products/bulk-file-renamer: executable icon and the embedded product icon. -->
     <HTProductId>bulk-file-renamer</HTProductId>
 

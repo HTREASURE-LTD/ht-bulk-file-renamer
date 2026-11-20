@@ -1,4 +1,4 @@
-# HT Bulk File Renamer — version 0.7.0 (source release)
+# HT Bulk File Renamer — version 0.7.1 (source release)
 
 An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 
@@ -12,6 +12,9 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 - Staged rename with best-effort rollback on failure.
 - Security Advisory History (mandatory HTREASURE standard) and the HTREASURE Software Update Service hook.
 - Inno Setup installer source script and build instructions.
+
+### New in 0.7.1 — Code signing in the release build
+- `Build-Release.ps1` builds the whole release (tests, self-contained publish, installer, portable zip, checksums) and Authenticode-signs HTREASURE's own binaries, Setup and its uninstaller when a certificate or Azure Artifact Signing is configured, then verifies every signature. See [docs/CODE-SIGNING.md](docs/CODE-SIGNING.md). The app itself is unchanged from 0.7.0.
 
 ### New in 0.7.0 — HTREASURE template and software standards
 - **.NET 10.** The app and tests target `net10.0-windows`. Requirements: **64-bit Windows 10 version 1809 (build 17763) or later**; Windows 7, 8 and 8.1 are no longer supported. The installer and portable zip are self-contained, so users don't need to install .NET.
