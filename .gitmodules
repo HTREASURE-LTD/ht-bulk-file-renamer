@@ -1,0 +1,6 @@
+[submodule "external/HT-Software-Template"]
+	path = external/HT-Software-Template
+	url = https://github.com/HTREASURE-LTD/HT-Software-Template.git
+[submodule "external/ht-software-standards"]
+	path = external/ht-software-standards
+	url = https://github.com/HTREASURE-LTD/ht-software-standards.git

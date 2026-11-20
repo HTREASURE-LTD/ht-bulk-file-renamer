@@ -1,3 +1,5 @@
+using HTREASURE.Branding;
+using HTREASURE.Branding.WinForms;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -6,12 +8,16 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using System.Windows.Forms;
+using HTREASURE.Standards.Updates;
+using HTREASURE.Standards.WinForms;
 
 namespace HTBulkFileRenamer
 {
     public class MainForm : Form
     {
         internal const string WebsiteUrl = "https://www.htreasure.com";
+        /// <summary>Advisory history and update service, configured from the values the build compiled in.</summary>
+        internal static readonly Lazy<HTStandardsRuntime> Standards = new Lazy<HTStandardsRuntime>(() => HTStandardsRuntime.FromAssembly(typeof(MainForm).Assembly));
 
         readonly List<FileEntry> files = new List<FileEntry>();
         readonly List<Tuple<string, string>> undoBatch = new List<Tuple<string, string>>();
@@ -49,9 +55,12 @@ namespace HTBulkFileRenamer
         // captioned group boxes with a label column, one accent primary button in the bottom action row.
         public MainForm()
         {
-            Text = Brand.ProductName;
-            Icon = Brand.ProductIcon;
+            Text = BrandInfo.ProductName;
+            BrandWinForms.ApplyIcon(this);
             Font = new Font("Segoe UI", 9F);
+            // Pixel sizes below are at 96 DPI; scale them on high-DPI screens (PerMonitorV2, as in the template).
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
             Size = new Size(1040, 780);
             MinimumSize = new Size(900, 700);
             StartPosition = FormStartPosition.CenterScreen;
@@ -59,9 +68,9 @@ namespace HTBulkFileRenamer
 
             // ---- Header banner
             var header = new Panel { Dock = DockStyle.Top, Height = 44, Tag = ThemeManager.HeaderTag };
-            header.Controls.Add(new PictureBox { Image = Brand.ProductImage, SizeMode = PictureBoxSizeMode.Zoom, Bounds = new Rectangle(16, 4, 36, 36) });
-            header.Controls.Add(new Label { Text = Brand.ProductName, AutoSize = true, Location = new Point(60, 1), Font = new Font("Segoe UI Semibold", 14.25F, FontStyle.Bold), UseMnemonic = false });
-            header.Controls.Add(new Label { Text = Brand.ProductDescription + " Add files to begin.", AutoSize = true, Location = new Point(62, 27), Tag = ThemeManager.DimTag, UseMnemonic = false });
+            header.Controls.Add(new PictureBox { Image = BrandWinForms.ProductImage, SizeMode = PictureBoxSizeMode.Zoom, Bounds = new Rectangle(16, 4, 36, 36) });
+            header.Controls.Add(new Label { Text = BrandInfo.ProductName, AutoSize = true, Location = new Point(60, 1), Font = new Font("Segoe UI Semibold", 14.25F, FontStyle.Bold), UseMnemonic = false });
+            header.Controls.Add(new Label { Text = BrandInfo.ProductDescription + " Add files to begin.", AutoSize = true, Location = new Point(62, 27), Tag = ThemeManager.DimTag, UseMnemonic = false });
             var website = new LinkLabel { Text = "www.htreasure.com", TextAlign = ContentAlignment.MiddleRight, Size = new Size(160, 18), Anchor = AnchorStyles.Top | AnchorStyles.Right };
             website.Location = new Point(header.Width - website.Width - 16, 13);
             website.LinkClicked += (s, e) => OpenWebsite(this);
@@ -113,11 +122,18 @@ namespace HTBulkFileRenamer
             }
             viewMenu.DropDownItems.Add(themeMenu);
 
+            var toolsMenu = new ToolStripMenuItem("&Tools");
+            toolsMenu.DropDownItems.Add("&Open Data Folder", null, (s, e) => OpenDataFolder());
+            toolsMenu.DropDownItems[0].ToolTipText = "Settings, saved presets and the rename history (history.tsv).";
+
+            // Mandatory HTREASURE standard: Help → About → Security Advisory History, and Help → Security Advisories.
             var helpMenu = new ToolStripMenuItem("&Help");
-            helpMenu.DropDownItems.Add("&Licence Agreement", null, (s, e) => ShowLicence(this));
+            helpMenu.DropDownItems.Add(SecurityAdvisoryUi.CreateAboutMenu(this, ShowAbout, () => Standards.Value));
+            helpMenu.DropDownItems.Add(SecurityAdvisoryUi.CreateAdvisoriesMenuItem(this, () => Standards.Value));
             helpMenu.DropDownItems.Add(new ToolStripSeparator());
-            helpMenu.DropDownItems.Add("&About " + Brand.ProductName, null, (s, e) => { using (var about = new AboutForm()) about.ShowDialog(this); });
-            menu.Items.AddRange(new ToolStripItem[] { fileMenu, listMenu, renameMenu, viewMenu, helpMenu });
+            helpMenu.DropDownItems.Add("&Check for Updates", null, (s, e) => CheckForUpdates());
+            helpMenu.DropDownItems.Add("&Licence Agreement", null, (s, e) => ShowLicence(this));
+            menu.Items.AddRange(new ToolStripItem[] { fileMenu, listMenu, renameMenu, viewMenu, toolsMenu, helpMenu });
             MainMenuStrip = menu;
 
             // ---- Name Rules
@@ -232,7 +248,7 @@ namespace HTBulkFileRenamer
             statusStrip.Items.Add(statusRight);
             statusStrip.Items.Add(progress);
             // Brand guideline: discreet company attribution in the status bar.
-            attribution.Text = Brand.ShortCopyright + " · " + Brand.Attribution;
+            attribution.Text = BrandInfo.ShortCopyright + " · " + BrandInfo.Attribution;
             statusStrip.Items.Add(attribution);
 
             Controls.Add(content);
@@ -282,6 +298,13 @@ namespace HTBulkFileRenamer
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += preferenceChanged;
             // SystemEvents is static: unsubscribe or the closed form stays alive.
             FormClosed += (s, e) => Microsoft.Win32.SystemEvents.UserPreferenceChanged -= preferenceChanged;
+            // HTREASURE standard: check for new security advisories once the window is open (silent when offline or
+            // when no advisory service is configured; never installs anything).
+            Shown += async (s, e) =>
+            {
+                try { await SecurityAdvisoryUi.CheckInBackgroundAsync(this, Standards.Value); }
+                catch (Exception ex) { SetStatus("Security advisory check failed: " + ex.Message, StatusKind.Warning); }
+            };
             string restoreProblem = LoadAppSettings();
             ApplyTheme();
             UpdateButtons();
@@ -364,6 +387,31 @@ namespace HTBulkFileRenamer
             ClearSortGlyph();
             RefreshPreview();
         }
+        void ShowAbout()
+        {
+            using (var about = new AboutForm()) about.ShowDialog(this);
+        }
+        void OpenDataFolder()
+        {
+            try
+            {
+                Directory.CreateDirectory(RenameHistory.DataDirectory);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(RenameHistory.DataDirectory) { UseShellExecute = true });
+            }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Cannot open folder", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        }
+        // Uses the HTREASURE Software Update Service once a signed release feed is configured (HTReleaseFeedUrl).
+        // Nothing is downloaded or installed without the user's approval.
+        void CheckForUpdates()
+        {
+            if (Standards.Value.ReleaseFeedUrl == null)
+            {
+                MessageBox.Show(this, "Automatic update checks are not set up for this version yet.\n\nNew versions are published by HTREASURE LTD at " + WebsiteUrl + ".",
+                    "Check for Updates", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            SecurityAdvisoryUi.ShowHistory(this, Standards.Value);
+        }
         internal static void ShowLicence(IWin32Window owner)
         {
             using (var licence = new LicenceForm()) licence.ShowDialog(owner);
@@ -374,7 +422,7 @@ namespace HTBulkFileRenamer
             catch (System.ComponentModel.Win32Exception)
             {
                 MessageBox.Show(owner, "Could not open a web browser. The HTREASURE LTD website is " + WebsiteUrl,
-                    Brand.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    BrandInfo.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
         ToolStripMenuItem Command(ToolStripMenuItem parent, string text, Action action, Keys keys = Keys.None, string keyText = null, string tip = null)

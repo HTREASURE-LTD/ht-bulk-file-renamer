@@ -27,7 +27,6 @@ namespace HTBulkFileRenamer
         public const string Publisher = CompanyName;
         public const string Attribution = "Developed by HTREASURE LTD";
         public const string RegistrationLine = "Company No. 17178941 · Registered in England and Wales";
-        public const string RegisteredAddress = "34a Wagg Street, Congleton, England, CW12 4BA";
 
         static readonly Assembly App = typeof(Brand).Assembly;
 

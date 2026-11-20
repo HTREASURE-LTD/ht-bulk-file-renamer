@@ -1,30 +1,47 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net462</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <LangVersion>latest</LangVersion>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>HTBulkFileRenamer</AssemblyName>
+    <RootNamespace>HTBulkFileRenamer</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
 
-    <!-- HTREASURE LTD product identity (HTREASURE-Branding/brand.json). Shown in the About box and file properties. -->
+    <!-- Product identity (HT-Software-Template). Company and copyright come from Directory.Build.props. -->
     <Product>HT Bulk File Renamer</Product>
     <AssemblyTitle>HT Bulk File Renamer</AssemblyTitle>
     <Description>Rename many files at once with previewed, reversible rules.</Description>
-    <Version>0.6.1</Version>
-    <Company>HTREASURE LTD</Company>
-    <Authors>HTREASURE LTD</Authors>
-    <!-- Year comes from the build date so the copyright line never goes stale. -->
-    <Copyright>Copyright © $([System.DateTime]::Now.Year) HTREASURE LTD. All rights reserved.</Copyright>
-    <ApplicationIcon>Branding\HT-bulk-file-renamer.ico</ApplicationIcon>
-    <!-- Declares longPathAware so paths of 260+ characters work where Windows long paths are enabled. -->
+    <Version>0.7.0</Version>
+    <!-- Icons/Products/bulk-file-renamer: executable icon and the embedded product icon. -->
+    <HTProductId>bulk-file-renamer</HTProductId>
+
+    <!-- HTREASURE standards: central application id, release channel and platform. -->
+    <HTAppId>ht-bulk-file-renamer</HTAppId>
+    <HTChannel>stable</HTChannel>
+    <HTPlatforms>windows-x64</HTPlatforms>
+    <HTMinimumOsVersion>10.0.17763</HTMinimumOsVersion>
+    <!-- Set to the signed HTTPS feeds once the advisory and release services are provisioned for this product. -->
+    <HTAdvisoryServiceUrl></HTAdvisoryServiceUrl>
+    <HTReleaseFeedUrl></HTReleaseFeedUrl>
+
+    <!-- Declares longPathAware for the Win32 file dialogs; .NET itself handles long paths. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <!-- Self-contained win-x64 release (Build-Release.ps1 passes -p:HTSelfContainedRelease=true). Set here rather than with
+       the publish command line options for runtime and self-contained: as global properties those also reach the standards CLI that
+       HTREASURE.Standards.targets builds, which then lands in bin\Release\net10.0\win-x64 where the targets don't look. -->
+  <PropertyGroup Condition="'$(HTSelfContainedRelease)' == 'true'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Branding\*.ico;Branding\*.png" LogicalName="Branding.%(Filename)%(Extension)" />
     <!-- End-User Licence Agreement (repository root LICENSE), shown by Help > Licence Agreement. -->
     <EmbeddedResource Include="..\..\LICENSE" LogicalName="Branding.LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net462" Version="1.0.3" PrivateAssets="all" />
+    <ProjectReference Include="..\..\external\HT-Software-Template\HTREASURE-Branding\IntegrationExamples\DotNet\src\HTREASURE.Branding.WinForms\HTREASURE.Branding.WinForms.csproj" />
+    <ProjectReference Include="$(HTStandardsRoot)dotnet\src\HTREASURE.Standards.WinForms\HTREASURE.Standards.WinForms.csproj" />
   </ItemGroup>
 </Project>
