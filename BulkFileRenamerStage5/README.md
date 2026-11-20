@@ -131,7 +131,7 @@ Company identity and assets come from the brand kit in the template submodule (`
 21. Install over 0.6.x and check the upgrade, the licence page and uninstall.
 
 ## Installer
-Install Inno Setup 6.3+ from https://jrsoftware.org/isinfo.php and run `Build-Release.ps1`, which compiles `Installer\HTBulkFileRenamer.iss` (version 0.7.0) and signs Setup and its uninstaller when code signing is configured. Setup installs the self-contained publish folder (no separate .NET install) and needs 64-bit Windows 10 version 1809 or later.
+Install Inno Setup 6.3+ from https://jrsoftware.org/isinfo.php and run `Build-Release.ps1`, which compiles `Installer\HTBulkFileRenamer.iss` (version 0.7.1) and signs Setup and its uninstaller when code signing is configured. Setup installs the self-contained publish folder (no separate .NET install) and needs 64-bit Windows 10 version 1809 or later.
 
 ## Licensing
 **End-User Licence Agreement:** `LICENSE` at the repository root (HTREASURE LTD EULA v1.0, based on the HT ISO Ripper agreement: free for personal, non-commercial use; other use needs a written licence). It is the single source for every copy:
