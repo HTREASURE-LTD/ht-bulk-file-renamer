@@ -1,8 +1,9 @@
 # Code signing – HT Bulk File Renamer
 
 Unsigned installers make Windows SmartScreen show **"Unknown publisher"**. Signing needs a code-signing certificate
-issued to **HTREASURE LTD** after the issuer has verified the company; only HTREASURE LTD can apply for one. A
-self-signed certificate is never used: it would still show "Unknown publisher".
+issued to **HTREASURE LTD** after the issuer has verified the company; only HTREASURE LTD can apply for one. Until
+then, releases can be **self-signed** (see below), which proves the files are HTREASURE's and unmodified but still shows
+"Unknown publisher" on PCs that don't trust the certificate.
 
 `Build-Release.ps1` supports both routes below with the same settings as HT ISO Ripper. When either is configured it:
 
@@ -58,6 +59,32 @@ powershell -Command "$env:HT_SIGN_THUMBPRINT='<certificate thumbprint>'; $env:HT
 ```
 
 Certificates on hardware tokens can't be used from GitHub-hosted runners; sign on the PC that holds the token.
+
+## Interim: self-signed certificate (local file)
+
+For internal and test PCs only. Create the certificate once:
+
+```powershell
+.\Tools\New-SelfSignedCodeSigningCert.ps1
+```
+
+This writes, to `C:\HTSoftware\signing` (outside the repository):
+
+- `HTREASURE-CodeSigning.pfx`: certificate and private key, protected by a random password. Keep it private and back it up.
+- `HTREASURE-CodeSigning.pfx.password`: that password, DPAPI-encrypted so only the same Windows account on the same PC
+  can read it. It is never typed or shown. On another PC, create a new certificate there.
+- `HTREASURE-CodeSigning.cer`: the public certificate, safe to share.
+
+Build:
+
+```powershell
+$env:HT_SIGN_PFX='C:\HTSoftware\signing\HTREASURE-CodeSigning.pfx'; $env:HT_TIMESTAMP_URL='http://timestamp.digicert.com'; .\Build-Release.ps1
+```
+
+The script notices that the certificate issued itself, accepts Windows' "untrusted root" result, still checks that every
+file was signed by that exact certificate, and copies the `.cer` into the output folder. On a test PC you control, an
+administrator can trust it with `Import-Certificate -FilePath HTREASURE-CodeSigning.cer -CertStoreLocation
+Cert:\LocalMachine\TrustedPublisher` (and `Cert:\LocalMachine\Root`). Never ask customers to do this.
 
 ## Not the same thing: the advisory snapshot key
 

@@ -16,6 +16,11 @@
 #     $env:HT_ARTIFACT_SIGNING_PROFILE   certificate profile name
 #     $env:HT_ARTIFACT_SIGNING_DLIB      path to Azure.CodeSigning.Dlib.dll (x64) from Microsoft's signing client
 #     Sign-in: Azure CLI (az login) locally, or AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_CLIENT_SECRET in CI.
+#   Self-signed, from a local file (internal and test PCs only): Tools\New-SelfSignedCodeSigningCert.ps1 creates it.
+#     $env:HT_SIGN_PFX       path to the .pfx; its password is read from <pfx>.password (DPAPI-encrypted, this user only)
+#     $env:HT_TIMESTAMP_URL  RFC 3161 timestamp server URL, e.g. http://timestamp.digicert.com
+#     Windows reports these signatures as untrusted until HTREASURE-CodeSigning.cer (copied into the output folder)
+#     is trusted on that PC.
 #   Optional: $env:SIGNTOOL_PATH (signtool.exe from the Windows SDK, x64), $env:ISCC_PATH (Inno Setup 6.3+ ISCC.exe).
 #
 # Advisory snapshot (HTREASURE standards; a different key from code signing): release builds must sign the bundled
@@ -44,7 +49,8 @@ $out = Join-Path $PSScriptRoot "Installer\Output\v$version"
 
 # ---- Code signing configuration (checked before anything is built)
 $useArtifactSigning = [bool]$env:HT_ARTIFACT_SIGNING_ACCOUNT
-$signing = [bool]$env:HT_SIGN_THUMBPRINT -or $useArtifactSigning
+$usePfx = [bool]$env:HT_SIGN_PFX -and -not $useArtifactSigning
+$signing = [bool]$env:HT_SIGN_THUMBPRINT -or $usePfx -or $useArtifactSigning
 if ($signing) {
     $signtool = $env:SIGNTOOL_PATH
     if (-not $signtool) { $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName }
@@ -60,10 +66,26 @@ if ($signing) {
         # Microsoft's documented signtool invocation for Artifact Signing (its own timestamp service).
         $signArgs = @('sign', '/fd', 'SHA256', '/tr', 'http://timestamp.acs.microsoft.com', '/td', 'SHA256', '/d', 'HT Bulk File Renamer',
                       '/dlib', $env:HT_ARTIFACT_SIGNING_DLIB, '/dmdf', $metadata)
+    } elseif ($usePfx) {
+        if (-not $env:HT_TIMESTAMP_URL) { throw 'HT_TIMESTAMP_URL must be set when signing with a .pfx file.' }
+        if (-not (Test-Path $env:HT_SIGN_PFX)) { throw "Signing certificate file not found: $env:HT_SIGN_PFX" }
+        $pfxPasswordFile = "$env:HT_SIGN_PFX.password"
+        if (-not (Test-Path $pfxPasswordFile)) { throw "Password file not found: $pfxPasswordFile" }
+        $pfxPassword = Get-Content $pfxPasswordFile | ConvertTo-SecureString
+        $pfxPlain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pfxPassword))
+        $signArgs = @('sign', '/f', $env:HT_SIGN_PFX, '/p', $pfxPlain, '/fd', 'SHA256', '/tr', $env:HT_TIMESTAMP_URL, '/td', 'SHA256', '/d', 'HT Bulk File Renamer')
     } else {
         if (-not $env:HT_TIMESTAMP_URL) { throw 'HT_TIMESTAMP_URL must be set when signing with a certificate thumbprint.' }
         $signArgs = @('sign', '/sha1', $env:HT_SIGN_THUMBPRINT, '/fd', 'SHA256', '/tr', $env:HT_TIMESTAMP_URL, '/td', 'SHA256', '/d', 'HT Bulk File Renamer')
     }
+}
+# Self-signed: a local .pfx whose certificate issued itself. Its signatures are expected to show an untrusted root.
+$selfSigned = $false
+if ($usePfx) {
+    $signCert = (Get-PfxData -FilePath $env:HT_SIGN_PFX -Password $pfxPassword).EndEntityCertificates | Select-Object -First 1
+    if (-not $signCert) { throw "No certificate in $env:HT_SIGN_PFX" }
+    $selfSigned = $signCert.Subject -eq $signCert.Issuer
+    if ($selfSigned) { Write-Warning 'SELF-SIGNED release: Windows shows "Unknown publisher" unless HTREASURE-CodeSigning.cer is trusted on the PC.' }
 }
 $iscc = $env:ISCC_PATH
 if (-not $iscc) {
@@ -127,10 +149,18 @@ Remove-Item -Recurse -Force $stage
 Step 'Verifying signatures'
 $setup = Join-Path $out "HTBulkFileRenamer-$version-Setup.exe"
 foreach ($file in @($setup) + @($ownBinaries | ForEach-Object FullName)) {
-    $status = (Get-AuthenticodeSignature $file).Status
-    if ($signing -and $status -ne 'Valid') { throw "$(Split-Path $file -Leaf) signature status: $status" }
+    $sig = Get-AuthenticodeSignature $file
+    $status = $sig.Status
+    if ($selfSigned) {
+        # An untrusted root (UnknownError) is expected; the file must still be signed by this exact certificate, unmodified.
+        if ($status -notin 'Valid', 'UnknownError' -or $sig.SignerCertificate.Thumbprint -ne $signCert.Thumbprint) {
+            throw "$(Split-Path $file -Leaf) signature status: $status"
+        }
+        $status = 'SelfSigned'
+    } elseif ($signing -and $status -ne 'Valid') { throw "$(Split-Path $file -Leaf) signature status: $status" }
     Write-Host ("  {0,-12} {1}" -f $status, (Split-Path $file -Leaf))
 }
+if ($selfSigned) { Export-Certificate -Cert $signCert -FilePath (Join-Path $out 'HTREASURE-CodeSigning.cer') | Out-Null }
 
 $sums = Get-ChildItem $out -File | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object Name |
     ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }

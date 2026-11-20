@@ -11,3 +11,9 @@ obj/
 
 # Test runner output
 TestResults/
+
+# Signing keys never go in the repository
+*.pfx
+*.pfx.password
+*.pem
+*.key
