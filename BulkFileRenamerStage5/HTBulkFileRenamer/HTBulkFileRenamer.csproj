@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net462</TargetFramework>
@@ -10,7 +10,7 @@
     <Product>HT Bulk File Renamer</Product>
     <AssemblyTitle>HT Bulk File Renamer</AssemblyTitle>
     <Description>Rename many files at once with previewed, reversible rules.</Description>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
     <Company>HTREASURE LTD</Company>
     <Authors>HTREASURE LTD</Authors>
     <!-- Year comes from the build date so the copyright line never goes stale. -->

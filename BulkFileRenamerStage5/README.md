@@ -1,4 +1,4 @@
-# HT Bulk File Renamer — Stage 5 (source release, version 0.5.0)
+# HT Bulk File Renamer — version 0.6.0 (source release)
 
 An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 
@@ -9,6 +9,15 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 - Save/load XML presets (`.htpreset`), rename/undo history, progress and cancel-before-commit.
 - Staged rename with best-effort rollback on failure.
 - Inno Setup installer source script and build instructions.
+
+### New in 0.6.0 — HTREASURE design template (shared with HT ISO Ripper)
+- **Same look and layout as HT ISO Ripper**: blue header banner (product icon, name, description, `www.htreasure.com` link), menu bar below it, settings in captioned group boxes with a label column (**Name Rules**; **Numbering, Case and Extension**; **Files**), standard Windows buttons, and one accent-coloured primary button.
+- **Bottom action row** like the ISO Ripper: **Rename Files** (primary), **Cancel**, **Undo Last Rename**, **Close**. **Add Files…**, **Add Folder…** and **Clear List** sit in the Files group. The menus and shortcuts are unchanged.
+- **Status bar** coloured by state (warnings amber, errors red, success green), with file / included / to-rename counts, a progress bar while renaming, and the company attribution.
+- **View > Theme**: Same as Windows (default; follows a light/dark switch while the app is open), Light or Dark, with a dark title bar on Windows 10 2004+ and 11. Remembered between runs.
+- About box and History window restyled to match; the About box uses the brand kit's dark-background logo in dark mode.
+- Fixes found in review: warnings about unreadable folders were immediately hidden by the preview message; the status now says so when every file is excluded.
+- `ThemeManager.cs` is ported from HT ISO Ripper (`src/HTISORipper.UI/ThemeManager.cs`) and extended for the file grid and right-click menu.
 
 ### New in Stage 5
 - **Menus instead of the button bar**, giving the file list more room:
@@ -34,13 +43,12 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 - Fixes from the Stage 3 review: path separators in prefix/suffix/replace are blocked, all controls lock during a rename, the window can't close mid-rename, and history-save failures are shown.
 
 ### HTREASURE branding
-Applied from the HTREASURE LTD brand kit (`C:\HTSoftware\Htreasure_files\HTREASURE-Branding`, `brand.json` v1.0.0), following its WinForms sample and the guidelines' "Software interface branding" page:
+Company identity and assets come from the HTREASURE LTD brand kit (`C:\HTSoftware\Htreasure_files\HTREASURE-Branding`, `brand.json` v1.0.0); colours and layout follow the HTREASURE design template used by HT ISO Ripper (see "New in 0.6.0"):
 - Product name **HT Bulk File Renamer** (was "HT Bulk File Renamer Pro") and the kit's product icon for the executable, title bar and header.
-- Deep Navy header with icon, name and description; brand colours throughout — Electric Blue only for the primary action (Rename Files, Undo Selected Batch), Technology Blue for secondary buttons and selected rows, Edge for neutral buttons.
-- Status bar with `© {year} HTREASURE LTD · Developed by HTREASURE LTD`; **Help > About** shows the standard HTREASURE About box (logo, version, copyright, publisher, company number and registered address).
+- Status bar with `© {year} HTREASURE LTD · Developed by HTREASURE LTD`; **Help > About** shows the HTREASURE About box (logo, version, copyright, publisher, company number, registered address and website).
 - File properties: Company `HTREASURE LTD`, Product, Description, Version and Copyright come from the `.csproj`. The copyright year is the build year, so it never goes stale.
 - Installer: publisher HTREASURE LTD, product icon, HTREASURE wizard artwork, installs to `Program Files\HTREASURE\HT Bulk File Renamer` (existing installs upgrade in place: the AppId is unchanged).
-- The kit's ready-made `HTREASURE.Branding.WinForms` library needs .NET 10, so this .NET Framework 4.6.2 app applies the same rules in `Brand.cs` and `AboutForm.cs`. The assets it uses are copied into `HTBulkFileRenamer\Branding\` and embedded in the exe; the wizard images are in `Installer\Images\`. If the brand kit changes, copy the updated files over these.
+- The kit's ready-made `HTREASURE.Branding.WinForms` library needs .NET 10, so this .NET Framework 4.6.2 app keeps the company details and assets in `Brand.cs` and the look in `ThemeManager.cs`. The assets it uses are copied into `HTBulkFileRenamer\Branding\` and embedded in the exe; the wizard images are in `Installer\Images\`. If the brand kit changes, copy the updated files over these.
 - Not added: the splash screen (the app opens instantly, and the guidelines say a splash should only last as long as loading takes) and the Inter font (the guidelines specify Segoe UI for desktop application UI).
 - The executable is **not** code-signed; don't describe it as signed until a certificate is configured.
 
@@ -54,7 +62,8 @@ Applied from the HTREASURE LTD brand kit (`C:\HTSoftware\Htreasure_files\HTREASU
 - `HTBulkFileRenamer.Tests\` — automated tests.
 - `RenameHistory.cs` — reading/writing `history.tsv` and grouping it into batches.
 - `HistoryForm.cs` — History window.
-- `Brand.cs`, `AboutForm.cs`, `Branding\` — HTREASURE colours, company details, icon/logo and the About box.
+- `ThemeManager.cs` — HTREASURE design template: light/dark palettes and control styling (from HT ISO Ripper).
+- `Brand.cs`, `AboutForm.cs`, `Branding\` — company details, icon/logos and the About box.
 
 ## Build on Windows 11 with Visual Studio 2026
 1. Open `HTBulkFileRenamer.slnx`.
@@ -100,7 +109,7 @@ Applied from the HTREASURE LTD brand kit (`C:\HTSoftware\Htreasure_files\HTREASU
 18. With long paths on, rename a file in a folder deeper than 260 characters; with them off, confirm the preview refuses it.
 
 ## Installer
-Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode, then compile `Installer\HTBulkFileRenamer.iss` (version 0.5.0). The installer requires .NET Framework 4.6.2 on the target PC; it does not install the runtime automatically.
+Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode, then compile `Installer\HTBulkFileRenamer.iss` (version 0.6.0). The installer requires .NET Framework 4.6.2 on the target PC; it does not install the runtime automatically.
 
 ## Licensing
 This project is supplied as editable starter source for your own development. Check the licences of all NuGet dependencies, installer tooling, icons and other assets before commercial redistribution. Do not market this build as fully tested or production-ready without completing acceptance tests.

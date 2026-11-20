@@ -9,20 +9,11 @@ using System.Windows.Forms;
 
 namespace HTBulkFileRenamer
 {
-    // HTREASURE LTD corporate identity, taken from HTREASURE-Branding/brand.json (v1.0.0).
-    // The kit's HTREASURE.Branding libraries need .NET 10 and this app targets .NET Framework 4.6.2,
-    // so the same rules are applied here directly. Product details come from the .csproj.
+    // HTREASURE LTD company identity and product assets, taken from HTREASURE-Branding/brand.json (v1.0.0).
+    // Colours and layout come from the HTREASURE design template (ThemeManager, shared with HT ISO Ripper).
+    // Product details come from the .csproj.
     public static class Brand
     {
-        public static readonly Color DeepNavy = ColorTranslator.FromHtml("#0B1F3A");
-        public static readonly Color TechnologyBlue = ColorTranslator.FromHtml("#0B3D91");
-        public static readonly Color ElectricBlue = ColorTranslator.FromHtml("#168BFF");
-        public static readonly Color SilverGrey = ColorTranslator.FromHtml("#AAB4C3");
-        public static readonly Color Edge = ColorTranslator.FromHtml("#3A5275");
-        public static readonly Color PageGrey = ColorTranslator.FromHtml("#F4F6F9");
-        public static readonly Color LineGrey = ColorTranslator.FromHtml("#DDE3EB");
-        public static readonly Color MutedText = ColorTranslator.FromHtml("#5A6577");
-
         public const string CompanyName = "HTREASURE LTD";
         public const string Publisher = CompanyName;
         public const string Attribution = "Developed by HTREASURE LTD";
@@ -61,10 +52,16 @@ namespace HTBulkFileRenamer
         public static string ShortCopyright { get { return "© " + CopyrightYear + " " + CompanyName; } }
 
         static Icon productIcon;
-        static Image productImage, logo;
+        static Image productImage, logo, logoDark;
         public static Icon ProductIcon { get { return productIcon ?? (productIcon = new Icon(Open("HT-bulk-file-renamer.ico"))); } }
         public static Image ProductImage { get { return productImage ?? (productImage = LoadImage("HT-bulk-file-renamer-256.png")); } }
-        public static Image Logo { get { return logo ?? (logo = LoadImage("HTREASURE-logo-horizontal-color-1024w.png")); } }
+        // The kit's "color-dark" logo is for dark backgrounds.
+        public static Image LogoFor(bool darkBackground)
+        {
+            return darkBackground
+                ? logoDark ?? (logoDark = LoadImage("HTREASURE-logo-horizontal-color-dark-1024w.png"))
+                : logo ?? (logo = LoadImage("HTREASURE-logo-horizontal-color-1024w.png"));
+        }
 
         static Stream Open(string name)
         {
@@ -77,28 +74,6 @@ namespace HTBulkFileRenamer
             using (var stream = Open(name))
             using (var decoded = Image.FromStream(stream))
                 return new Bitmap(decoded);   // detach from the stream
-        }
-
-        // Primary = Electric Blue (main action), secondary = Technology Blue, neutral = Edge.
-        public static void StyleButton(Button b, Color color, int width)
-        {
-            b.Width = width; b.Height = 34; b.FlatStyle = FlatStyle.Flat;
-            b.FlatAppearance.BorderSize = 0; b.BackColor = color; b.ForeColor = Color.White;
-            b.Margin = new Padding(3, 1, 5, 1);
-        }
-
-        public static void StyleGrid(DataGridView grid)
-        {
-            grid.BackgroundColor = Color.White;
-            grid.GridColor = LineGrey;
-            grid.EnableHeadersVisualStyles = false;
-            grid.ColumnHeadersDefaultCellStyle.BackColor = DeepNavy;
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = DeepNavy;
-            grid.DefaultCellStyle.ForeColor = DeepNavy;
-            grid.DefaultCellStyle.SelectionBackColor = TechnologyBlue;
-            grid.DefaultCellStyle.SelectionForeColor = Color.White;
-            grid.AlternatingRowsDefaultCellStyle.BackColor = PageGrey;
         }
 
         // Draws an image into a rectangle with high-quality resampling, keeping its aspect ratio.

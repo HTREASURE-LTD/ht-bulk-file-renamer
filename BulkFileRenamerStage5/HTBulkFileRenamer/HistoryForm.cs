@@ -27,9 +27,8 @@ namespace HTBulkFileRenamer
             StartPosition = FormStartPosition.CenterParent;
             ShowInTaskbar = false;
             Font = new Font("Segoe UI", 9F);
-            BackColor = Brand.PageGrey;
 
-            summary.Dock = DockStyle.Top; summary.Height = 34; summary.Padding = new Padding(12, 9, 12, 0); summary.ForeColor = Brand.DeepNavy;
+            summary.Dock = DockStyle.Top; summary.Height = 34; summary.Padding = new Padding(12, 9, 12, 0);
 
             ConfigureGrid(batchGrid);
             batchGrid.Columns.Add("when", "When");
@@ -49,12 +48,14 @@ namespace HTBulkFileRenamer
             split.Orientation = Orientation.Horizontal;
             split.Panel1.Controls.Add(batchGrid);
             split.Panel2.Controls.Add(moveGrid);
-            split.Panel2.Controls.Add(new Label { Text = "Files in the selected batch", Dock = DockStyle.Top, Height = 24, Padding = new Padding(12, 5, 0, 0), ForeColor = Brand.DeepNavy, BackColor = Color.White });
+            split.Panel2.Controls.Add(new Label { Text = "Files in the selected batch", Dock = DockStyle.Top, Height = 24, Padding = new Padding(12, 5, 0, 0), Tag = ThemeManager.AccentTag });
 
-            var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(10, 7, 10, 5), FlowDirection = FlowDirection.RightToLeft, BackColor = Brand.PageGrey };
-            StyleButton(closeButton, "Close", Brand.Edge, 90);
-            StyleButton(openLogButton, "Open Log File", Brand.TechnologyBlue, 120);
-            StyleButton(undoButton, "Undo Selected Batch", Brand.ElectricBlue, 160);
+            // Design template: standard buttons, the one primary action in the accent colour.
+            var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(10, 8, 10, 5), FlowDirection = FlowDirection.RightToLeft };
+            StyleButton(closeButton, "Close", 92);
+            StyleButton(openLogButton, "Open Log File", 120);
+            StyleButton(undoButton, "Undo Selected Batch", 150);
+            undoButton.Tag = ThemeManager.PrimaryTag;
             buttons.Controls.AddRange(new Control[] { closeButton, openLogButton, undoButton });
             closeButton.Click += (s, e) => Close();
             openLogButton.Click += (s, e) => OpenLog();
@@ -64,14 +65,14 @@ namespace HTBulkFileRenamer
             Controls.Add(split);
             Controls.Add(buttons);
             Controls.Add(summary);
+            ThemeManager.Apply(this);
             Load += (s, e) => { split.SplitterDistance = split.Height * 55 / 100; LoadBatches(); };
         }
 
         void ConfigureGrid(DataGridView grid)
         {
             grid.Dock = DockStyle.Fill;
-            Brand.StyleGrid(grid);
-            grid.BorderStyle = BorderStyle.None;
+            grid.BorderStyle = BorderStyle.FixedSingle;
             grid.ReadOnly = true;
             grid.AllowUserToAddRows = false;
             grid.AllowUserToDeleteRows = false;
@@ -79,15 +80,14 @@ namespace HTBulkFileRenamer
             grid.RowHeadersVisible = false;
             grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            grid.ColumnHeadersHeight = 30;
-            grid.RowTemplate.Height = 26;
+            grid.ColumnHeadersHeight = 26;
+            grid.RowTemplate.Height = 24;
         }
 
-        void StyleButton(Button b, string text, Color color, int width)
+        static void StyleButton(Button b, string text, int width)
         {
-            b.Text = text; b.Width = width; b.Height = 32; b.FlatStyle = FlatStyle.Flat;
-            b.FlatAppearance.BorderSize = 0; b.BackColor = color; b.ForeColor = Color.White;
-            b.Margin = new Padding(5, 1, 0, 1);
+            b.Text = text; b.Width = width; b.Height = 30;
+            b.Margin = new Padding(6, 1, 0, 1);
         }
 
         void LoadBatches()
@@ -101,7 +101,7 @@ namespace HTBulkFileRenamer
             {
                 int row = batchGrid.Rows.Add(batch.TimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), batch.Operation, batch.Moves.Count, Folder(batch), State(batch));
                 batchGrid.Rows[row].Tag = batch;
-                if (batch.Operation != "RENAME" || batch.Undone) batchGrid.Rows[row].DefaultCellStyle.ForeColor = Brand.MutedText;
+                if (batch.Operation != "RENAME" || batch.Undone) batchGrid.Rows[row].DefaultCellStyle.ForeColor = ThemeManager.Current.DimText;
             }
             summary.Text = loadError ?? (batches.Count == 0
                 ? "No rename history has been recorded yet."
@@ -139,6 +139,7 @@ namespace HTBulkFileRenamer
                     moveGrid.Rows[row].Cells[1].ToolTipText = move.Item2;
                 }
             undoButton.Enabled = batch != null && batch.Operation == "RENAME" && !batch.Undone;
+            ThemeManager.UpdatePrimary(undoButton);
         }
 
         void UndoSelected()
@@ -149,6 +150,7 @@ namespace HTBulkFileRenamer
             if (MessageBox.Show(this, "Restore " + batch.Moves.Count + " file(s) to the names they had before the rename on " + when + "?",
                 "Undo batch", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             undoButton.Enabled = false;
+            ThemeManager.UpdatePrimary(undoButton);
             if (undo(batch, this)) LoadBatches(); else ShowSelected();
         }
 

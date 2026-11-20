@@ -11,6 +11,8 @@ namespace HTBulkFileRenamer
 {
     public class MainForm : Form
     {
+        internal const string WebsiteUrl = "https://www.htreasure.com";
+
         readonly List<FileEntry> files = new List<FileEntry>();
         readonly List<Tuple<string, string>> undoBatch = new List<Tuple<string, string>>();
         string undoBatchId;
@@ -26,11 +28,16 @@ namespace HTBulkFileRenamer
         readonly NumericUpDown start = new NumericUpDown(), digits = new NumericUpDown();
         readonly ComboBox casing = new ComboBox(), extensionMode = new ComboBox();
         readonly TextBox newExtension = new TextBox();
-        readonly ToolStripStatusLabel status = new ToolStripStatusLabel();
+        readonly ToolStripStatusLabel status = new ToolStripStatusLabel(), statusRight = new ToolStripStatusLabel(), attribution = new ToolStripStatusLabel();
+        StatusKind statusKind = StatusKind.Neutral;
         readonly ToolStripMenuItem renameItem, undoItem, cancelItem;
+        readonly Button renameButton = new Button(), cancelButton = new Button(), undoButton = new Button();
         // Menu commands that are disabled while files are being moved.
         readonly List<ToolStripMenuItem> commandItems = new List<ToolStripMenuItem>();
-        readonly TableLayoutPanel settings = new TableLayoutPanel();
+        // Inputs and buttons that are disabled while files are being moved.
+        readonly List<Control> lockedWhileBusy = new List<Control>();
+        readonly Dictionary<AppTheme, ToolStripMenuItem> themeItems = new Dictionary<AppTheme, ToolStripMenuItem>();
+        AppTheme theme = AppTheme.System;
         readonly ToolTip tips = new ToolTip { AutoPopDelay = 15000 };
 
         const int IncludeColumn = 0, OriginalColumn = 1, ProposedColumn = 2, ModifiedColumn = 3, StatusColumn = 4;
@@ -38,20 +45,32 @@ namespace HTBulkFileRenamer
         [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
         static extern int StrCmpLogicalW(string a, string b);
 
+        // Layout follows the HTREASURE design template used by HT ISO Ripper: blue header banner, menu bar,
+        // captioned group boxes with a label column, one accent primary button in the bottom action row.
         public MainForm()
         {
             Text = Brand.ProductName;
             Icon = Brand.ProductIcon;
-            Size = new Size(1180, 780);
-            MinimumSize = new Size(960, 700);
-            StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 9F);
-            BackColor = Brand.PageGrey;
+            Size = new Size(1040, 780);
+            MinimumSize = new Size(900, 700);
+            StartPosition = FormStartPosition.CenterScreen;
             AllowDrop = true;
 
-            // All commands live in the menus. Shortcuts avoid keys the text boxes need (Del, Ctrl+Z, Alt+arrows);
+            // ---- Header banner
+            var header = new Panel { Dock = DockStyle.Top, Height = 44, Tag = ThemeManager.HeaderTag };
+            header.Controls.Add(new PictureBox { Image = Brand.ProductImage, SizeMode = PictureBoxSizeMode.Zoom, Bounds = new Rectangle(16, 4, 36, 36) });
+            header.Controls.Add(new Label { Text = Brand.ProductName, AutoSize = true, Location = new Point(60, 1), Font = new Font("Segoe UI Semibold", 14.25F, FontStyle.Bold), UseMnemonic = false });
+            header.Controls.Add(new Label { Text = Brand.ProductDescription + " Add files to begin.", AutoSize = true, Location = new Point(62, 27), Tag = ThemeManager.DimTag, UseMnemonic = false });
+            var website = new LinkLabel { Text = "www.htreasure.com", TextAlign = ContentAlignment.MiddleRight, Size = new Size(160, 18), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            website.Location = new Point(header.Width - website.Width - 16, 13);
+            website.LinkClicked += (s, e) => OpenWebsite(this);
+            tips.SetToolTip(website, "Open the HTREASURE LTD website (" + WebsiteUrl + ")");
+            header.Controls.Add(website);
+
+            // ---- Menus. Shortcuts avoid keys the text boxes need (Del, Ctrl+Z, Alt+arrows);
             // Del and Alt+Up/Down are handled by the file list itself (GridKeyDown) and only shown here.
-            var menu = new MenuStrip { BackColor = Color.White };
+            var menu = new MenuStrip();
             var fileMenu = new ToolStripMenuItem("&File");
             Command(fileMenu, "Add &Files...", AddFilesDialog, Keys.Control | Keys.O);
             Command(fileMenu, "Add F&older...", AddFolderDialog, Keys.Control | Keys.Shift | Keys.O);
@@ -66,7 +85,7 @@ namespace HTBulkFileRenamer
 
             var listMenu = new ToolStripMenuItem("&List");
             Command(listMenu, "&Remove Selected", RemoveSelected, keyText: "Del");
-            Command(listMenu, "&Clear List", () => { files.Clear(); ClearSortGlyph(); RefreshPreview(); });
+            Command(listMenu, "&Clear List", ClearList);
             listMenu.DropDownItems.Add(new ToolStripSeparator());
             const string orderTip = "Numbering follows the list order. Click the Original filename or Modified header to sort.";
             Command(listMenu, "Move &Up", () => MoveSelected(-1), keyText: "Alt+Up", tip: orderTip);
@@ -78,74 +97,83 @@ namespace HTBulkFileRenamer
             var renameMenu = new ToolStripMenuItem("&Rename");
             Command(renameMenu, "Refresh &Preview", RefreshPreview, Keys.F5);
             renameItem = Command(renameMenu, "&Rename Files...", RenameFiles, Keys.Control | Keys.R);
-            renameItem.Font = new Font(renameItem.Font, FontStyle.Bold);
             undoItem = Command(renameMenu, "&Undo Last Rename", Undo);
-            cancelItem = Command(renameMenu, "&Cancel Rename", () => { cancelRequested = true; status.Text = "Cancellation requested; completing safe rollback..."; });
+            cancelItem = Command(renameMenu, "&Cancel Rename", RequestCancel);
             renameMenu.DropDownItems.Add(new ToolStripSeparator());
             Command(renameMenu, "&History...", OpenHistory, Keys.Control | Keys.H);
 
+            var viewMenu = new ToolStripMenuItem("&View");
+            var themeMenu = new ToolStripMenuItem("&Theme");
+            foreach (var choice in new[] { Tuple.Create(AppTheme.System, "Same as &Windows"), Tuple.Create(AppTheme.Light, "&Light"), Tuple.Create(AppTheme.Dark, "&Dark") })
+            {
+                var value = choice.Item1;
+                var item = new ToolStripMenuItem(choice.Item2, null, (s, e) => SetTheme(value));
+                themeItems[value] = item;
+                themeMenu.DropDownItems.Add(item);
+            }
+            viewMenu.DropDownItems.Add(themeMenu);
+
             var helpMenu = new ToolStripMenuItem("&Help");
             helpMenu.DropDownItems.Add("&About " + Brand.ProductName, null, (s, e) => { using (var about = new AboutForm()) about.ShowDialog(this); });
-            menu.Items.AddRange(new ToolStripItem[] { fileMenu, listMenu, renameMenu, helpMenu });
+            menu.Items.AddRange(new ToolStripItem[] { fileMenu, listMenu, renameMenu, viewMenu, helpMenu });
             MainMenuStrip = menu;
 
-            // Product header band: product icon, name and description on Deep Navy.
-            var header = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Brand.DeepNavy };
-            header.Controls.Add(new BrandImageBox { Image = Brand.ProductImage, Bounds = new Rectangle(16, 12, 40, 40) });
-            header.Controls.Add(new Label { Text = Brand.ProductName, ForeColor = Color.White, AutoSize = true, Location = new Point(66, 10), Font = new Font("Segoe UI", 14F, FontStyle.Bold), UseMnemonic = false });
-            header.Controls.Add(new Label { Text = Brand.ProductDescription, ForeColor = Brand.SilverGrey, AutoSize = true, Location = new Point(68, 38), UseMnemonic = false });
+            // ---- Name Rules
+            var rules = Group("Name Rules", 4);
+            var rulesTable = Table(rules, 4, 4);
+            Row(rulesTable, 0, "Prefix:", prefix, "Suffix:", suffix);
+            Row(rulesTable, 1, "Find:", find, "Replace with:", replace);
+            matchCase.Text = "Match case"; matchCase.AutoSize = true; matchCase.Checked = true;
+            useRegex.Text = "Use regular expression"; useRegex.AutoSize = true; useRegex.Margin = new Padding(16, 3, 3, 3);
+            var findOptions = Flow(matchCase, useRegex);
+            rulesTable.Controls.Add(findOptions, 3, 2);
+            var tokenHint = new Label { Text = "Tokens for prefix and suffix: {n} {date} {created} {taken} {parent}, e.g. {taken:yyyyMMdd}_  (hover for details)", AutoSize = true, Tag = ThemeManager.DimTag, Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 3, 3) };
+            rulesTable.Controls.Add(tokenHint, 0, 3); rulesTable.SetColumnSpan(tokenHint, 4);
+            foreach (Control c in new Control[] { prefix, suffix, tokenHint }) tips.SetToolTip(c, RenameEngine.TokenHelp);
+            tips.SetToolTip(useRegex, "Find is a .NET regular expression; use $1, $2 in Replace for captured groups.");
 
-            settings.Dock = DockStyle.Top; settings.Height = 228; settings.Padding = new Padding(15, 10, 15, 5);
-            settings.ColumnCount = 8; settings.RowCount = 4; settings.BackColor = Color.White;
-            for (int i = 0; i < 8; i++) settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12.5F));
-            for (int i = 0; i < 4; i++) settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 49));
-            AddField(settings, "Prefix (tokens allowed)", prefix, 0, 0, 2);
-            AddField(settings, "Suffix (before extension)", suffix, 2, 0, 2);
-            AddField(settings, "Find", find, 4, 0, 2);
-            AddField(settings, "Replace with", replace, 6, 0, 2);
-            numbering.Text = "Add numbering (001_)"; numbering.AutoSize = true; numbering.Checked = true; numbering.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            var numberPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
-            numberPanel.Controls.Add(numbering);
-            settings.Controls.Add(numberPanel, 0, 1); settings.SetColumnSpan(numberPanel, 2);
-            start.Minimum = 0; start.Maximum = 999999; start.Value = 1;
-            digits.Minimum = 1; digits.Maximum = 8; digits.Value = 3;
-            AddField(settings, "Start number", start, 2, 1, 1);
-            AddField(settings, "Digits", digits, 3, 1, 1);
-            matchCase.Text = "Match case"; matchCase.AutoSize = true; matchCase.Checked = true; matchCase.Margin = new Padding(0, 3, 12, 0);
-            useRegex.Text = "Use regex"; useRegex.AutoSize = true; useRegex.Margin = new Padding(0, 3, 0, 0);
-            var findOptions = new FlowLayoutPanel { WrapContents = false };
-            findOptions.Controls.Add(matchCase);
-            findOptions.Controls.Add(useRegex);
-            AddField(settings, "Find options", findOptions, 4, 1, 2);
+            // ---- Numbering, Case and Extension
+            var format = Group("Numbering, Case and Extension", 2);
+            var formatTable = Table(format, 6, 2);
+            numbering.Text = "Add number at start (001_)"; numbering.AutoSize = true; numbering.Checked = true;
+            tips.SetToolTip(numbering, "Adds the number at the start. Put {n} in the prefix or suffix to place it yourself.");
+            start.Minimum = 0; start.Maximum = 999999; start.Value = 1; start.Width = 90;
+            digits.Minimum = 1; digits.Maximum = 8; digits.Value = 3; digits.Width = 60;
+            formatTable.Controls.Add(Caption("Numbering:"), 0, 0);
+            formatTable.Controls.Add(Flow(numbering), 1, 0);
+            formatTable.Controls.Add(Caption("Start at:"), 2, 0);
+            formatTable.Controls.Add(Flow(start, Caption("Digits:"), digits), 3, 0);
+            formatTable.SetColumnSpan(formatTable.GetControlFromPosition(3, 0), 3);
             casing.DropDownStyle = ComboBoxStyle.DropDownList;
             casing.Items.AddRange(new object[] { "Keep original", "lowercase", "UPPERCASE", "Title Case" });
             casing.SelectedIndex = 0;
-            AddField(settings, "Filename case", casing, 6, 1, 2);
             extensionMode.DropDownStyle = ComboBoxStyle.DropDownList;
             extensionMode.Items.AddRange(new object[] { "Keep original", "lowercase", "UPPERCASE", "Replace with..." });
             extensionMode.SelectedIndex = 0;
-            AddField(settings, "Extension", extensionMode, 0, 2, 2);
-            newExtension.Enabled = false;
-            AddField(settings, "New extension (empty removes it)", newExtension, 2, 2, 2);
-            var extensionHint = new Label { Text = "Only this setting changes the extension.", AutoSize = true, ForeColor = Brand.MutedText, Padding = new Padding(3, 25, 0, 0) };
-            settings.Controls.Add(extensionHint, 4, 2); settings.SetColumnSpan(extensionHint, 4);
-            var extra = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoScroll = true };
-            extra.Controls.Add(new Label { Text = "Filters (e.g. *.txt;*.jpg):", AutoSize = true, Padding = new Padding(0, 7, 3, 0) });
-            filter.Width = 170; filter.Text = "*.*"; extra.Controls.Add(filter);
-            recursive.Text = "Include subfolders"; recursive.AutoSize = true;
+            newExtension.Enabled = false; newExtension.Width = 90;
+            tips.SetToolTip(newExtension, "New extension, with or without the dot. Leave empty to remove the extension.");
+            Row(formatTable, 1, "Filename case:", casing, "Extension:", null);
+            extensionMode.Width = 150;
+            formatTable.Controls.Add(Flow(extensionMode, newExtension, new Label { Text = "Only this setting changes the extension.", AutoSize = true, Tag = ThemeManager.DimTag, Margin = new Padding(6, 7, 3, 3) }), 3, 1);
+            formatTable.SetColumnSpan(formatTable.GetControlFromPosition(3, 1), 3);
+
+            // ---- Files: filters, add buttons and the preview grid
+            var filesGroup = new GroupBox { Text = "Files", Dock = DockStyle.Fill, Padding = new Padding(10, 6, 10, 10) };
+            var filesBar = new TableLayoutPanel { Dock = DockStyle.Top, Height = 36, ColumnCount = 2 };
+            filesBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            filesBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            filter.Width = 150; filter.Text = "*.*";
+            recursive.Text = "Include subfolders"; recursive.AutoSize = true; recursive.Margin = new Padding(16, 6, 3, 3);
+            tips.SetToolTip(filter, "Only add files matching these patterns, e.g. *.jpg;*.png. Applies to files added from now on.");
             tips.SetToolTip(recursive, "When adding a folder, also add files from its subfolders.");
-            recursive.Margin = new Padding(18, 6, 0, 0); extra.Controls.Add(recursive);
-            var tokenHint = new Label { Text = "  Tokens: {n} {date} {created} {taken} {parent}, e.g. {taken:yyyyMMdd}", AutoSize = true, ForeColor = Brand.MutedText, Padding = new Padding(5, 7, 0, 0) };
-            extra.Controls.Add(tokenHint);
-            settings.Controls.Add(extra, 0, 3);
-            settings.SetColumnSpan(extra, 8);
-            foreach (Control c in new Control[] { prefix, suffix, tokenHint }) tips.SetToolTip(c, RenameEngine.TokenHelp);
-            tips.SetToolTip(useRegex, "Find is a .NET regular expression; use $1, $2 in Replace for captured groups.");
-            tips.SetToolTip(numbering, "Adds the number at the start. Put {n} in the prefix or suffix to place it yourself.");
+            filesBar.Controls.Add(Flow(Caption("Filters:"), filter, recursive), 0, 0);
+            var addFiles = MakeButton("Add Files...", AddFilesDialog, 100);
+            var addFolder = MakeButton("Add Folder...", AddFolderDialog, 100);
+            var clear = MakeButton("Clear List", ClearList, 90);
+            filesBar.Controls.Add(Flow(addFiles, addFolder, clear), 1, 0);
 
             grid.Dock = DockStyle.Fill;
-            Brand.StyleGrid(grid);
-            grid.BorderStyle = BorderStyle.None;
+            grid.BorderStyle = BorderStyle.FixedSingle;
             grid.AllowUserToAddRows = false;
             grid.AllowUserToDeleteRows = false;
             grid.AllowUserToResizeRows = false;
@@ -153,15 +181,15 @@ namespace HTBulkFileRenamer
             grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 34;
-            grid.RowTemplate.Height = 29;
+            grid.ColumnHeadersHeight = 26;
+            grid.RowTemplate.Height = 24;
             grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "include", HeaderText = "Include", FillWeight = 22 });
             grid.Columns.Add("original", "Original filename");
             grid.Columns.Add("proposed", "Proposed filename");
             grid.Columns.Add("modified", "Modified");
             grid.Columns.Add("result", "Status");
             grid.Columns[ModifiedColumn].FillWeight = 45;
-            grid.Columns[StatusColumn].FillWeight = 45;
+            grid.Columns[StatusColumn].FillWeight = 50;
             foreach (DataGridViewColumn column in grid.Columns)
             {
                 column.ReadOnly = column.Index != IncludeColumn;
@@ -169,23 +197,54 @@ namespace HTBulkFileRenamer
             }
             grid.AllowDrop = true;
             grid.ContextMenuStrip = BuildGridMenu();
+            var gridSpacer = new Panel { Dock = DockStyle.Top, Height = 4 };
+            filesGroup.Controls.Add(grid);
+            filesGroup.Controls.Add(gridSpacer);
+            filesGroup.Controls.Add(filesBar);
 
-            // Status bar with the discreet company attribution on the right.
-            var footer = new StatusStrip { SizingGrip = false, BackColor = Brand.PageGrey, ForeColor = Brand.MutedText };
-            status.Spring = true; status.TextAlign = ContentAlignment.MiddleLeft; status.ForeColor = Brand.DeepNavy;
-            progress.Size = new Size(160, 16); progress.Minimum = 0; progress.Maximum = 100;
-            footer.Items.Add(status);
-            footer.Items.Add(progress);
-            footer.Items.Add(new ToolStripStatusLabel(Brand.ShortCopyright + " · " + Brand.Attribution) { ForeColor = Brand.MutedText });
+            // ---- Bottom action row: note on the left, primary action first on the right
+            var actionRow = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 46, ColumnCount = 2, Padding = new Padding(0, 6, 0, 4) };
+            actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            actionRow.Controls.Add(new Label { Text = "Nothing is renamed until you confirm. Renames can be undone.", AutoSize = true, Tag = ThemeManager.DimTag, Anchor = AnchorStyles.Left }, 0, 0);
+            renameButton.Text = "Rename Files"; renameButton.Size = new Size(115, 32); renameButton.Tag = ThemeManager.PrimaryTag;
+            renameButton.Click += (s, e) => RenameFiles();
+            cancelButton.Text = "Cancel"; cancelButton.Size = new Size(92, 32); cancelButton.Click += (s, e) => RequestCancel();
+            undoButton.Text = "Undo Last Rename"; undoButton.Size = new Size(130, 32); undoButton.Click += (s, e) => Undo();
+            var closeButton = new Button { Text = "Close", Size = new Size(92, 32) };
+            closeButton.Click += (s, e) => Close();
+            actionRow.Controls.Add(Flow(renameButton, cancelButton, undoButton, closeButton), 1, 0);
+            lockedWhileBusy.AddRange(new Control[] { rules, format, filesBar, closeButton });
 
-            Controls.Add(grid);
-            Controls.Add(footer);
-            Controls.Add(settings);
-            Controls.Add(header);
+            var content = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 8, 12, 0) };
+            content.Controls.Add(filesGroup);
+            content.Controls.Add(format);
+            content.Controls.Add(rules);
+            content.Controls.Add(actionRow);
+
+            // ---- Status strip: state on the left (coloured by kind), file counts and progress on the right
+            var statusStrip = new StatusStrip { SizingGrip = false };
+            status.Spring = true; status.TextAlign = ContentAlignment.MiddleLeft;
+            progress.Size = new Size(140, 16); progress.Minimum = 0; progress.Maximum = 100; progress.Visible = false;
+            statusStrip.Items.Add(status);
+            statusStrip.Items.Add(statusRight);
+            statusStrip.Items.Add(progress);
+            // Brand guideline: discreet company attribution in the status bar.
+            attribution.Text = Brand.ShortCopyright + " · " + Brand.Attribution;
+            statusStrip.Items.Add(attribution);
+
+            Controls.Add(content);
+            Controls.Add(statusStrip);
             Controls.Add(menu);
+            Controls.Add(header);
 
             foreach (TextBox box in new[] { prefix, suffix, find, replace, newExtension }) box.TextChanged += (s, e) => RefreshPreview();
-            extensionMode.SelectedIndexChanged += (s, e) => { newExtension.Enabled = extensionMode.SelectedIndex == 3; RefreshPreview(); };
+            extensionMode.SelectedIndexChanged += (s, e) =>
+            {
+                newExtension.Enabled = extensionMode.SelectedIndex == 3;
+                ThemeManager.Restyle(newExtension);
+                RefreshPreview();
+            };
             foreach (CheckBox box in new[] { numbering, matchCase, useRegex }) box.CheckedChanged += (s, e) => RefreshPreview();
             start.ValueChanged += (s, e) => RefreshPreview();
             digits.ValueChanged += (s, e) => RefreshPreview();
@@ -209,23 +268,108 @@ namespace HTBulkFileRenamer
             // Closing mid-operation would abandon files under temporary names.
             FormClosing += (s, e) =>
             {
-                if (busy) { e.Cancel = true; status.Text = "Please wait for the current operation to finish."; return; }
+                if (busy) { e.Cancel = true; SetStatus("Please wait for the current rename to finish, or press Cancel.", StatusKind.Warning); return; }
                 SaveAppSettings();
             };
+            // "Same as Windows" follows a light/dark switch made while the app is open.
+            Microsoft.Win32.UserPreferenceChangedEventHandler preferenceChanged = (s, e) =>
+            {
+                if (theme == AppTheme.System && e.Category == Microsoft.Win32.UserPreferenceCategory.General && IsHandleCreated)
+                    BeginInvoke((Action)ApplyTheme);
+            };
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged += preferenceChanged;
+            // SystemEvents is static: unsubscribe or the closed form stays alive.
+            FormClosed += (s, e) => Microsoft.Win32.SystemEvents.UserPreferenceChanged -= preferenceChanged;
             string restoreProblem = LoadAppSettings();
+            ApplyTheme();
             UpdateButtons();
-            status.Text = restoreProblem ?? "Ready — File > Add Files (Ctrl+O), or drag files/folders into the window. Rename > Rename Files (Ctrl+R) when the preview looks right.";
+            RefreshPreview();
+            if (restoreProblem != null) SetStatus(restoreProblem, StatusKind.Warning);
+            else SetStatus("Ready. Add files with Add Files..., Add Folder... or drag them into the window.");
         }
 
-        void AddField(TableLayoutPanel panel, string title, Control field, int column, int row, int span)
+        // ---- Layout helpers for the design template's group boxes
+
+        GroupBox Group(string title, int rows)
         {
-            var box = new Panel { Dock = DockStyle.Fill, Padding = new Padding(3, 0, 8, 0) };
-            box.Controls.Add(new Label { Text = title, Dock = DockStyle.Top, Height = 18, ForeColor = Brand.DeepNavy });
-            field.Dock = DockStyle.Bottom;
-            field.Height = 24;
-            box.Controls.Add(field);
-            panel.Controls.Add(box, column, row);
-            panel.SetColumnSpan(box, span);
+            return new GroupBox { Text = title, Dock = DockStyle.Top, Height = 26 + rows * 30, Padding = new Padding(10, 4, 10, 4) };
+        }
+        static TableLayoutPanel Table(GroupBox group, int columns, int rows)
+        {
+            var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = columns, RowCount = rows };
+            for (int i = 0; i < columns; i++)
+                table.ColumnStyles.Add(i % 2 == 0 ? new ColumnStyle(SizeType.AutoSize) : new ColumnStyle(SizeType.Percent, 100f / (columns / 2)));
+            for (int i = 0; i < rows; i++) table.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+            group.Controls.Add(table);
+            return table;
+        }
+        static Label Caption(string text)
+        {
+            return new Label { Text = text, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(3, 7, 8, 3) };
+        }
+        static void Row(TableLayoutPanel table, int row, string leftCaption, Control left, string rightCaption, Control right)
+        {
+            table.Controls.Add(Caption(leftCaption), 0, row);
+            if (left != null) { left.Dock = DockStyle.Fill; left.Margin = new Padding(3, 3, 16, 3); table.Controls.Add(left, 1, row); }
+            table.Controls.Add(Caption(rightCaption), 2, row);
+            if (right != null) { right.Dock = DockStyle.Fill; table.Controls.Add(right, 3, row); }
+        }
+        static FlowLayoutPanel Flow(params Control[] controls)
+        {
+            var flow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0), Anchor = AnchorStyles.Left };
+            flow.Controls.AddRange(controls);
+            return flow;
+        }
+        Button MakeButton(string text, Action action, int width)
+        {
+            var button = new Button { Text = text, Size = new Size(width, 28), Margin = new Padding(6, 3, 0, 3) };
+            button.Click += (s, e) => action();
+            return button;
+        }
+
+        // ---- Theme and status
+
+        void ApplyTheme()
+        {
+            ThemeManager.SetTheme(theme);
+            ThemeManager.Apply(this);
+            attribution.ForeColor = ThemeManager.Current.DimText;
+            foreach (var pair in themeItems) pair.Value.Checked = pair.Key == theme;
+            SetStatus(status.Text, statusKind);
+            if (grid.Rows.Count > 0) RefreshPreview();
+        }
+        void SetTheme(AppTheme value)
+        {
+            theme = value;
+            ApplyTheme();
+        }
+        void SetStatus(string text, StatusKind kind = StatusKind.Neutral)
+        {
+            statusKind = kind;
+            status.Text = text;
+            status.ForeColor = ThemeManager.Current.StatusColor(kind);
+        }
+        void RequestCancel()
+        {
+            if (!busy) return;
+            cancelRequested = true;
+            SetStatus("Cancellation requested; completing safe rollback...", StatusKind.Warning);
+        }
+        void ClearList()
+        {
+            if (busy) return;
+            files.Clear();
+            ClearSortGlyph();
+            RefreshPreview();
+        }
+        internal static void OpenWebsite(IWin32Window owner)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(WebsiteUrl) { UseShellExecute = true }); }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                MessageBox.Show(owner, "Could not open a web browser. The HTREASURE LTD website is " + WebsiteUrl,
+                    Brand.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
         ToolStripMenuItem Command(ToolStripMenuItem parent, string text, Action action, Keys keys = Keys.None, string keyText = null, string tip = null)
         {
@@ -286,6 +430,20 @@ namespace HTBulkFileRenamer
             }
             if (files.Count != before) ClearSortGlyph();
             RefreshPreview();
+            // Shown after the preview so its status message doesn't hide the warning.
+            if (skippedFolderError != null)
+            {
+                SetStatus(skippedFolders + " folder(s) could not be read and were skipped (" + skippedFolderError + ").", StatusKind.Warning);
+                skippedFolders = 0;
+                skippedFolderError = null;
+            }
+        }
+        int skippedFolders;
+        string skippedFolderError;
+        void NoteSkippedFolder(Exception ex)
+        {
+            skippedFolders++;
+            if (skippedFolderError == null) skippedFolderError = ex.Message;
         }
         void AddFolder(string folder)
         {
@@ -302,7 +460,7 @@ namespace HTBulkFileRenamer
             {
                 string current = pending.Pop();
                 try { results.AddRange(Directory.GetFiles(current)); }
-                catch (Exception ex) { status.Text = "Skipped unreadable folder: " + ex.Message; }
+                catch (Exception ex) { NoteSkippedFolder(ex); }
                 if (!recursive.Checked) continue;
                 try
                 {
@@ -311,7 +469,7 @@ namespace HTBulkFileRenamer
                         if ((File.GetAttributes(sub) & FileAttributes.ReparsePoint) == 0) pending.Push(sub);
                     }
                 }
-                catch (Exception ex) { status.Text = "Skipped subfolders: " + ex.Message; }
+                catch (Exception ex) { NoteSkippedFolder(ex); }
             }
             return results;
         }
@@ -467,7 +625,7 @@ namespace HTBulkFileRenamer
                 try
                 {
                     new XDocument(SettingsXml("HTRenamePreset")).Save(dialog.FileName);
-                    status.Text = "Preset saved: " + dialog.FileName;
+                    SetStatus("Preset saved: " + dialog.FileName, StatusKind.Success);
                 }
                 catch (Exception ex) { MessageBox.Show("Could not save preset: " + ex.Message); }
             }
@@ -482,7 +640,7 @@ namespace HTBulkFileRenamer
                     var root = XDocument.Load(dialog.FileName).Root;
                     if (root == null || root.Name != "HTRenamePreset") throw new InvalidDataException("Invalid preset file.");
                     ApplySettingsXml(root);
-                    RefreshPreview(); status.Text = "Preset loaded: " + dialog.FileName;
+                    RefreshPreview(); SetStatus("Preset loaded: " + dialog.FileName, StatusKind.Success);
                 }
                 catch (Exception ex) { MessageBox.Show("Could not load preset: " + ex.Message); }
             }
@@ -495,6 +653,8 @@ namespace HTBulkFileRenamer
             {
                 var root = XDocument.Load(settingsPath).Root;
                 if (root == null) return null;
+                AppTheme savedTheme;
+                if (Enum.TryParse((string)root.Element("Theme"), out savedTheme) && Enum.IsDefined(typeof(AppTheme), savedTheme)) theme = savedTheme;
                 ApplySettingsXml(root);
                 var window = root.Element("Window");
                 if (window != null)
@@ -517,6 +677,7 @@ namespace HTBulkFileRenamer
             try
             {
                 var root = SettingsXml("HTRenamerSettings");
+                root.Add(new XElement("Theme", theme));
                 var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
                 root.Add(new XElement("Window", new XAttribute("x", bounds.X), new XAttribute("y", bounds.Y),
                     new XAttribute("width", bounds.Width), new XAttribute("height", bounds.Height),
@@ -550,7 +711,7 @@ namespace HTBulkFileRenamer
         void ExportPreview()
         {
             if (busy) return;
-            if (files.Count == 0) { status.Text = "Nothing to export — add files first."; return; }
+            if (files.Count == 0) { SetStatus("Nothing to export — add files first.", StatusKind.Warning); return; }
             var options = CurrentOptions();
             List<Tuple<string, string>> moves;
             try { moves = RenameEngine.PlanMoves(files, options); }
@@ -567,7 +728,7 @@ namespace HTBulkFileRenamer
                 {
                     // UTF-8 with BOM so Excel shows non-English filenames correctly.
                     File.WriteAllText(dialog.FileName, RenameEngine.ToCsv(rows), new System.Text.UTF8Encoding(true));
-                    status.Text = "Preview exported: " + dialog.FileName;
+                    SetStatus("Preview exported: " + dialog.FileName, StatusKind.Success);
                 }
                 catch (Exception ex) { MessageBox.Show("Could not export preview: " + ex.Message, "Export CSV", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             }
@@ -606,26 +767,37 @@ namespace HTBulkFileRenamer
                     row.Cells[ProposedColumn].Value = moves == null ? "" : Path.GetFileName(moves[i].Item2);
                     row.Cells[ModifiedColumn].Value = file.Modified.ToString("yyyy-MM-dd HH:mm");
                     row.Cells[StatusColumn].Value = RowStatus(file, moves == null ? null : moves[i], usesTaken);
-                    row.DefaultCellStyle.ForeColor = file.Included ? Brand.DeepNavy : Brand.MutedText;
+                    row.DefaultCellStyle.ForeColor = file.Included ? ThemeManager.Current.Text : ThemeManager.Current.DimText;
                 }
             }
             finally { updatingGrid = false; }
             int included = files.Count(f => f.Included);
             int changes = moves == null ? 0 : moves.Count(m => m.Item1 != m.Item2);
-            string numberingText = RenameEngine.UsesNumberToken(options) ? "{n}" : numbering.Checked ? "ON" : "OFF";
-            status.Text = settingsError ?? (problem == null
-                ? files.Count + " file(s) loaded, " + included + " included — " + changes + " change(s) previewed. Numbering: " + numberingText
-                : "Check: " + problem);
+            statusRight.Text = files.Count == 0 ? "" : files.Count + " file(s)  •  " + included + " included  •  " + changes + " to rename";
+            if (settingsError != null) SetStatus(settingsError, StatusKind.Error);
+            else if (problem != null) SetStatus("Check: " + problem, StatusKind.Warning);
+            else if (files.Count == 0) SetStatus("Ready. Add files with Add Files..., Add Folder... or drag them into the window.");
+            else if (included == 0) SetStatus("Every file is excluded. Tick Include for the files you want to rename.", StatusKind.Warning);
+            else if (changes == 0) SetStatus("Nothing to rename yet: set a prefix, suffix, numbering or find/replace rule.");
+            else SetStatus("Preview ready. Check the new names, then click Rename Files.");
             UpdateButtons();
-            renameItem.Enabled = moves != null && problem == null && changes > 0;
+            canRename = moves != null && problem == null && changes > 0;
+            UpdateRenameButton();
+        }
+        bool canRename;
+        void UpdateRenameButton()
+        {
+            renameItem.Enabled = renameButton.Enabled = !busy && canRename;
+            ThemeManager.UpdatePrimary(renameButton);
         }
         // Lock every input while files are being moved; Application.DoEvents keeps the UI live.
         void UpdateButtons()
         {
             foreach (var item in commandItems) item.Enabled = !busy;
-            settings.Enabled = !busy;
-            undoItem.Enabled = !busy && undoBatch.Count > 0;
-            cancelItem.Enabled = busy;
+            foreach (var control in lockedWhileBusy) control.Enabled = !busy;
+            undoItem.Enabled = undoButton.Enabled = !busy && undoBatch.Count > 0;
+            cancelItem.Enabled = cancelButton.Enabled = busy;
+            UpdateRenameButton();
         }
 
         // Runs RenameExecutor with the window locked, the progress bar updating and Cancel live.
@@ -636,6 +808,8 @@ namespace HTBulkFileRenamer
             UpdateButtons();
             progress.Value = 0;
             progress.Maximum = Math.Max(1, moves.Count * 2);
+            progress.Visible = true;
+            SetStatus("Renaming " + moves.Count + " file(s)...");
             try
             {
                 return RenameExecutor.Apply(moves, () => cancelRequested,
@@ -646,6 +820,7 @@ namespace HTBulkFileRenamer
                 busy = false;
                 cancelRequested = false;
                 progress.Value = 0;
+                progress.Visible = false;
                 UpdateButtons();
             }
         }
@@ -667,8 +842,8 @@ namespace HTBulkFileRenamer
             string historyWarning = RenameHistory.Append("RENAME", moves, batchId, null);
             for (int i = 0; i < files.Count; i++) files[i].Path = all[i].Item2;
             RefreshPreview();
-            status.Text = "Renamed " + moves.Count + " file(s) successfully. To undo: Rename > Undo Last Rename, or later from Rename > History."
-                + (historyWarning == null ? "" : " Warning: " + historyWarning);
+            if (historyWarning == null) SetStatus("Renamed " + moves.Count + " file(s). To undo, click Undo Last Rename, or later use Rename > History.", StatusKind.Success);
+            else SetStatus("Renamed " + moves.Count + " file(s), but: " + historyWarning, StatusKind.Warning);
         }
         void Undo()
         {
@@ -693,7 +868,8 @@ namespace HTBulkFileRenamer
             string historyWarning = RenameHistory.Append("UNDO", reverse, RenameHistory.NewBatchId(), batchId);
             if (batchId != null && batchId == undoBatchId) { undoBatch.Clear(); undoBatchId = null; }
             RefreshPreview();
-            status.Text = "Undo complete — " + moves.Count + " filename(s) restored." + (historyWarning == null ? "" : " Warning: " + historyWarning);
+            if (historyWarning == null) SetStatus("Undo complete — " + moves.Count + " filename(s) restored.", StatusKind.Success);
+            else SetStatus("Undo complete — " + moves.Count + " filename(s) restored, but: " + historyWarning, StatusKind.Warning);
             return true;
         }
     }
