@@ -1,14 +1,27 @@
-# HT Bulk File Renamer — version 0.6.1 (source release)
+# HT Bulk File Renamer — version 0.7.0 (source release)
 
 An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 
 ## What is included
-- Windows Forms C# project targeting .NET Framework 4.6.2 (`net462`).
+- Windows Forms C# project targeting **.NET 10** (`net10.0-windows`), built on the HTREASURE application template
+  ([HT-Software-Template](https://github.com/HTREASURE-LTD/HT-Software-Template)) and meeting the HTREASURE
+  [software standards](https://github.com/HTREASURE-LTD/ht-software-standards).
 - Drag/drop, prefix/suffix, find/replace, case conversion, automatic numbering, live preview.
 - File filtering (`*.txt;*.jpg`), optional recursive folder import (avoids directory junction loops).
 - Save/load XML presets (`.htpreset`), rename/undo history, progress and cancel-before-commit.
 - Staged rename with best-effort rollback on failure.
+- Security Advisory History (mandatory HTREASURE standard) and the HTREASURE Software Update Service hook.
 - Inno Setup installer source script and build instructions.
+
+### New in 0.7.0 — HTREASURE template and software standards
+- **.NET 10.** The app and tests target `net10.0-windows`. Requirements: **64-bit Windows 10 version 1809 (build 17763) or later**; Windows 7, 8 and 8.1 are no longer supported. The installer and portable zip are self-contained, so users don't need to install .NET.
+- **Template build files.** `Directory.Build.props/.targets` import the template's branding build files and the standards build targets. Company, copyright year and version metadata, the executable icon (`<HTProductId>bulk-file-renamer</HTProductId>`) and the embedded product icon come from the template; the local copies (`Brand.cs`, `Branding\`) were removed in favour of the kit's `HTREASURE.Branding.WinForms` library (`BrandInfo`, `BrandWinForms`).
+- **Splash screen** (`BrandSplashForm`), shown only while the main window is built, as in the template. High-DPI mode `PerMonitorV2`; every window scales its 96-DPI layout.
+- **Security Advisory History** (mandatory): **Help → About → Security Advisory History** and **Help → Security Advisories** (`HTREASURE.Standards.WinForms`). Every build bundles an offline advisory snapshot (`security\advisory-snapshot.json`) and writes `ht-compatibility.json` (app id `ht-bulk-file-renamer`, channel `stable`, platform `windows-x64`, minimum OS 10.0.17763). A background advisory check runs at start-up once an advisory service is configured.
+- **Help → Check for Updates** uses the HTREASURE Software Update Service once a signed release feed is configured (`<HTReleaseFeedUrl>`); until then it says so. Nothing is downloaded or installed without approval.
+- **Tools → Open Data Folder** (settings, presets, rename history), as in the template's Tools menu.
+- Long paths: .NET 10 handles paths of 260+ characters itself, so they are allowed without Windows' `LongPathsEnabled` setting.
+- The template and standards repositories are **git submodules** in `external/` (see Build).
 
 ### New in 0.6.1 — End-User Licence Agreement
 - HTREASURE LTD End-User Licence Agreement (`LICENSE`): accepted on the installer's licence page, installed as `LICENSE.txt` with a Start-menu shortcut, shown in **Help > Licence Agreement** and linked from **About**, and included in the portable zip. See "Licensing" below.
@@ -31,11 +44,9 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
   Del and Alt+arrows act on the file list only, and Undo has no Ctrl+Z, so text boxes keep their normal keys. While a rename runs, every command except Cancel Rename is disabled.
 - **Extension options.** **Extension**: Keep original, lowercase, UPPERCASE, or Replace with… a **New extension** (with or without the dot; leave it empty to remove the extension). Find/replace, tokens and filename case still never touch the extension.
 - **`{taken}` token**: the photo's "date taken" from EXIF (JPEG/TIFF), e.g. `{taken:yyyyMMdd}_`. Files without one use their modified date and show **Pending (no photo date)**. Photo dates are read the first time `{taken}` is used, so a large list may pause briefly then.
-- **Long paths.** The app now declares long-path support. Where Windows long paths are turned on (`LongPathsEnabled`, Windows 10 1607+), paths of 260+ characters can be renamed. Where they aren't, the preview refuses them with a clear message — including folders so deep that the temporary name used during a rename wouldn't fit (previously that failed mid-rename and rolled back).
 - **Export CSV** saves the preview (include, folder, original name, proposed name, modified, status) as UTF-8 CSV for Excel.
 - **Automated tests.** `HTBulkFileRenamer.Tests` (MSTest, 24 tests) covers naming rules, validation, history, EXIF reading and the real file moves: swaps, three-way cycles, case-only renames, cancel, and rollback when a file is locked. The file-moving code moved out of the window into `RenameExecutor.cs` so it can be tested.
 - Presets and saved settings gain `ExtensionMode`/`NewExtension`; older presets load with the extension kept.
-- Installer now also installs `HTBulkFileRenamer.exe.config`.
 
 ### New in Stage 4
 - **Choose and order files.** Each row has an **Include** checkbox; excluded files keep their name and don't use a number. Reorder with **Move Up / Move Down** (or Alt+Up / Alt+Down), or click the **Original filename** (natural order: 2 before 10) or **Modified** header to sort. Right-click for include/exclude all. Space toggles the selected rows; Delete removes them from the list.
@@ -46,34 +57,36 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 - Fixes from the Stage 3 review: path separators in prefix/suffix/replace are blocked, all controls lock during a rename, the window can't close mid-rename, and history-save failures are shown.
 
 ### HTREASURE branding
-Company identity and assets come from the HTREASURE LTD brand kit (`C:\HTSoftware\Htreasure_files\HTREASURE-Branding`, `brand.json` v1.0.0); colours and layout follow the HTREASURE design template used by HT ISO Ripper (see "New in 0.6.0"):
-- Product name **HT Bulk File Renamer** (was "HT Bulk File Renamer Pro") and the kit's product icon for the executable, title bar and header.
-- Status bar with `© {year} HTREASURE LTD · Developed by HTREASURE LTD`; **Help > About** shows the HTREASURE About box (logo, version, copyright, publisher, company number, registered address and website).
-- File properties: Company `HTREASURE LTD`, Product, Description, Version and Copyright come from the `.csproj`. The copyright year is the build year, so it never goes stale.
-- Installer: publisher HTREASURE LTD, product icon, HTREASURE wizard artwork, installs to `Program Files\HTREASURE\HT Bulk File Renamer` (existing installs upgrade in place: the AppId is unchanged).
-- The kit's ready-made `HTREASURE.Branding.WinForms` library needs .NET 10, so this .NET Framework 4.6.2 app keeps the company details and assets in `Brand.cs` and the look in `ThemeManager.cs`. The assets it uses are copied into `HTBulkFileRenamer\Branding\` and embedded in the exe; the wizard images are in `Installer\Images\`. If the brand kit changes, copy the updated files over these.
-- Not added: the splash screen (the app opens instantly, and the guidelines say a splash should only last as long as loading takes) and the Inter font (the guidelines specify Segoe UI for desktop application UI).
+Company identity and assets come from the brand kit in the template submodule (`external/HT-Software-Template/HTREASURE-Branding`, `brand.json`); colours and layout follow the HTREASURE design template used by HT ISO Ripper (see "New in 0.6.0"):
+- Product name **HT Bulk File Renamer** and the kit's product icon for the executable, title bar, header and installer.
+- Status bar with the kit's attribution (`© {year} HTREASURE LTD · …`); **Help → About → About this application** shows the HTREASURE About box (logo, version and runtime, copyright, publisher, company number, website and licence agreement). The office address is deliberately not shown.
+- File properties: Company `HTREASURE LTD`, Product, Description, Version and Copyright. The copyright year is the build year, so it never goes stale.
+- Installer: publisher HTREASURE LTD, product icon, HTREASURE wizard artwork, installs to `Program Files\HTREASURE\HT Bulk File Renamer` (the AppId is unchanged, so it upgrades earlier installs).
 - The executable is **not** code-signed; don't describe it as signed until a certificate is configured.
 
 ### Source layout
 - `HTBulkFileRenamer.slnx` — solution with the app and the tests.
-- `Program.cs` — entry point.
-- `MainForm.cs` — main window, file list, presets, export, rename/undo commands.
+- `Directory.Build.props`, `Directory.Build.targets` — HTREASURE template and standards build integration.
+- `Program.cs` — entry point and splash screen.
+- `MainForm.cs` — main window, file list, presets, export, rename/undo commands, standards menus.
 - `RenameEngine.cs` — naming rules (find/replace, tokens, numbering, extension), photo dates, validation, CSV; no UI.
 - `RenameExecutor.cs` — staged file moves with rollback; no UI.
-- `app.manifest`, `App.config` — long-path opt-in.
-- `HTBulkFileRenamer.Tests\` — automated tests.
 - `RenameHistory.cs` — reading/writing `history.tsv` and grouping it into batches.
 - `HistoryForm.cs` — History window.
 - `ThemeManager.cs` — HTREASURE design template: light/dark palettes and control styling (from HT ISO Ripper).
-- `Brand.cs`, `AboutForm.cs`, `Branding\` — company details, icon/logos and the About box.
+- `AboutForm.cs`, `LicenceForm.cs` — About box and licence agreement.
+- `app.manifest` — Windows compatibility and long-path declaration.
+- `HTBulkFileRenamer.Tests\` — automated tests.
+- `..\external\` — submodules: `HT-Software-Template` (brand kit and branding libraries) and `ht-software-standards` (Security Advisory History, update service, build targets).
 
 ## Build on Windows 11 with Visual Studio 2026
-1. Open `HTBulkFileRenamer.slnx`.
-2. Ensure **.NET desktop development** workload and .NET SDK are installed.
-3. Restore NuGet packages; Build > Rebuild Solution; run Ctrl+F5. Run tests with Test > Run All Tests (or `dotnet test HTBulkFileRenamer.slnx`).
-4. If SDK resolution fails, run `where dotnet` and `dotnet --list-sdks` and verify the x64 SDK appears first.
-5. `Build-Release.ps1` runs the tests and, only if they pass, builds `HTBulkFileRenamer\bin\Release\net462\HTBulkFileRenamer.exe` (+ `.exe.config`).
+1. Clone with submodules: `git clone --recurse-submodules https://github.com/HTREASURE-LTD/ht-bulk-file-renamer.git` (or `git submodule update --init` in an existing clone). Both submodules are private HTREASURE-LTD repositories.
+2. Install the **.NET 10 SDK** (10.0.100 or later) and Visual Studio 2026 with the **.NET desktop development** workload.
+3. Open `HTBulkFileRenamer.slnx`; Build > Rebuild Solution; run Ctrl+F5. Run tests with Test > Run All Tests (or `dotnet test HTBulkFileRenamer.slnx`).
+4. `Build-Release.ps1` runs the tests and, only if they pass, publishes a self-contained win-x64 build to `HTBulkFileRenamer\bin\publish\win-x64` (about 120 MB, includes the .NET runtime).
+   - **Advisory snapshot signing (standards requirement).** Release builds must sign the bundled advisory snapshot: `.\Build-Release.ps1 -SigningKey D:\offline\advisory.pem -KeyId <key id>`. HTREASURE has not provisioned a production signing key yet (`ht-software-standards/security/keys/trusted-keys.json` is empty), so without `-SigningKey` the script builds an **internal** release (`HTRequireSignedSnapshot=false`), and Security Advisory History shows "Development build: the bundled advisory snapshot is not signed".
+   - The script sets the runtime identifier inside the `.csproj` (`HTSelfContainedRelease`), not on the `dotnet publish` command line, because command-line `-r`/`--self-contained` also reach the standards CLI build and break `HTREASURE.Standards.targets`.
+5. When the advisory service and release feed exist, set `<HTAdvisoryServiceUrl>` and `<HTReleaseFeedUrl>` in `HTBulkFileRenamer.csproj`.
 
 ## Feature notes and limitations
 - Filter affects **newly added files only**; changing it does not remove files already in the list.
@@ -84,12 +97,11 @@ Company identity and assets come from the HTREASURE LTD brand kit (`C:\HTSoftwar
 - Progress updates during staged moves. **Cancel** is honored during the staging phase; once commit begins, it completes the commit rather than interrupting half-renamed files.
 - On failure, rollback is best-effort; inspect the folder for `.ht-renamer-*.tmp` if prompted.
 - History undo fails safely (nothing is moved) if any file in the batch has since been moved, renamed or deleted, or if an original name is now taken.
-- Data folder: `%LOCALAPPDATA%\HTSoftware\BulkFileRenamer\` — `history.tsv` and `settings.xml`. History paths are base64 encoded for safe tab-delimited storage, **not encrypted**. Treat the history as potentially sensitive.
-- `history.tsv` now has two extra columns (batch id, undone batch id). Stage 3 entries are still read: their batches are grouped by time, and a Stage 3 undo is matched to the rename it reversed.
+- Data folder: `%LOCALAPPDATA%\HTSoftware\BulkFileRenamer\` — `history.tsv` and `settings.xml` (kept from earlier versions so history and settings carry over). The advisory cache lives in `%LOCALAPPDATA%\HTREASURE\ht-bulk-file-renamer\security`. History paths are base64 encoded for safe tab-delimited storage, **not encrypted**. Treat the history as potentially sensitive.
+- `history.tsv` has two extra columns since Stage 4 (batch id, undone batch id). Stage 3 entries are still read.
 - Stage 3 `.htpreset` files load unchanged (Match case on, Regular expression off).
-- No licence key/activation is included. Installer script is provided, but the installer executable is not prebuilt.
-- No Windows 7/8/8.1/10 testing has been performed. Targeting `net462` does not guarantee compatibility with every environment.
-- Windows 7/8/8.1 and .NET Framework 4.6.2 are out of support; security and commercial support implications must be evaluated before distribution.
+- No licence key/activation is included.
+- Only Windows 11 x64 has been used for testing. Windows 10 1809+ and ARM64 (x64 emulation) are untested.
 
 ## Test checklist
 1. Build, launch, add disposable files and preview.
@@ -109,10 +121,13 @@ Company identity and assets come from the HTREASURE LTD brand kit (`C:\HTSoftwar
 15. Extension: lowercase on `.JPG` files; Replace with `md`; Replace with empty (extension removed).
 16. Prefix `{taken:yyyyMMdd}_` on camera photos and on non-photos (shows **Pending (no photo date)**).
 17. Export CSV and open it in Excel; check non-English filenames.
-18. With long paths on, rename a file in a folder deeper than 260 characters; with them off, confirm the preview refuses it.
+18. Rename a file in a folder deeper than 260 characters.
+19. **Help → Security Advisories** and **Help → About → Security Advisory History**: the banner says the data is the bundled offline snapshot; **Export Security Report…** saves a report.
+20. Run at 150% and 200% display scaling: windows and text scale cleanly.
+21. Install over 0.6.x and check the upgrade, the licence page and uninstall.
 
 ## Installer
-Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode, then compile `Installer\HTBulkFileRenamer.iss` (version 0.6.1). The installer requires .NET Framework 4.6.2 on the target PC; it does not install the runtime automatically.
+Install Inno Setup 6.3+ from https://jrsoftware.org/isinfo.php, run `Build-Release.ps1`, then compile `Installer\HTBulkFileRenamer.iss` (version 0.7.0). Setup installs the self-contained publish folder (no separate .NET install) and needs 64-bit Windows 10 version 1809 or later.
 
 ## Licensing
 **End-User Licence Agreement:** `LICENSE` at the repository root (HTREASURE LTD EULA v1.0, based on the HT ISO Ripper agreement: free for personal, non-commercial use; other use needs a written licence). It is the single source for every copy:
@@ -120,4 +135,4 @@ Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode
 - **Help > Licence Agreement** and the link in **About**, read from a copy embedded in the exe;
 - `LICENSE.txt` in the portable zip.
 
-This project is supplied as editable starter source for your own development. Check the licences of all NuGet dependencies, installer tooling, icons and other assets before commercial redistribution. Do not market this build as fully tested or production-ready without completing acceptance tests.
+The self-contained build includes the Microsoft .NET runtime (MIT licence) and the Inter font (SIL Open Font Licence, via the branding library). Check the licences of all dependencies and assets before commercial redistribution. Do not market this build as fully tested or production-ready without completing acceptance tests.

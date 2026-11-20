@@ -1,0 +1,11 @@
+<Project>
+  <!-- HTREASURE branding: product icon (HTProductId) and assembly metadata. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\external\HT-Software-Template\HTREASURE-Branding\IntegrationExamples\DotNet\Build\HTREASURE.Branding.targets" />
+
+  <!-- Mandatory HTREASURE standards: Security Advisory History, update service and ht-compatibility.json.
+       Projects opt in by setting <HTAppId>. -->
+  <Import Project="$(HTStandardsRoot)dotnet\build\HTREASURE.Standards.targets" Condition="Exists('$(HTStandardsRoot)dotnet\build\HTREASURE.Standards.targets')" />
+  <Target Name="HTStandardsMissing" BeforeTargets="Build" Condition="'$(HTAppId)' != '' and !Exists('$(HTStandardsRoot)dotnet\build\HTREASURE.Standards.targets')">
+    <Error Text="HTREASURE software standards not found at '$(HTStandardsRoot)'. Run: git submodule update --init" />
+  </Target>
+</Project>

@@ -1,3 +1,5 @@
+using HTREASURE.Branding;
+using HTREASURE.Branding.WinForms;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -8,9 +10,11 @@ namespace HTBulkFileRenamer
     {
         public LicenceForm()
         {
-            Text = "Licence Agreement — " + Brand.ProductName;
-            Icon = Brand.ProductIcon;
+            Text = "Licence Agreement — " + BrandInfo.ProductName;
+            Icon = BrandWinForms.ProductIcon;
             Font = new Font("Segoe UI", 9F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
             Size = new Size(720, 600);
             MinimumSize = new Size(480, 360);
             StartPosition = FormStartPosition.CenterParent;
@@ -20,7 +24,7 @@ namespace HTBulkFileRenamer
             var text = new TextBox
             {
                 Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, WordWrap = true,
-                Dock = DockStyle.Fill, Text = Brand.LicenceText.Replace("\r\n", "\n").Replace("\n", "\r\n"),
+                Dock = DockStyle.Fill, Text = LicenceText.Replace("\r\n", "\n").Replace("\n", "\r\n"),
                 BorderStyle = BorderStyle.FixedSingle, TabStop = false
             };
             var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 12, 12, 0) };
@@ -37,6 +41,23 @@ namespace HTBulkFileRenamer
             ThemeManager.Apply(this);
             // Leave the caret at the top rather than with all the text selected.
             Shown += (s, e) => { text.SelectionStart = 0; text.SelectionLength = 0; ok.Focus(); };
+        }
+
+        // The repository's LICENSE file, embedded at build time (see the .csproj).
+        static string licenceText;
+        public static string LicenceText
+        {
+            get
+            {
+                if (licenceText == null)
+                {
+                    var stream = typeof(LicenceForm).Assembly.GetManifestResourceStream("Branding.LICENSE.txt");
+                    if (stream == null) throw new System.IO.FileNotFoundException("Missing embedded licence agreement.");
+                    using (var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8))
+                        licenceText = reader.ReadToEnd();
+                }
+                return licenceText;
+            }
         }
     }
 }

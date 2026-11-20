@@ -1,7 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -16,7 +16,7 @@ namespace HTBulkFileRenamer.Tests
             using (var bitmap = new Bitmap(8, 8))
             {
                 // PropertyItem has no public constructor; GDI+ only needs the fields set.
-                var item = (PropertyItem)FormatterServices.GetUninitializedObject(typeof(PropertyItem));
+                var item = (PropertyItem)RuntimeHelpers.GetUninitializedObject(typeof(PropertyItem));
                 item.Id = 0x9003;
                 item.Type = 2;   // ASCII
                 item.Value = Encoding.ASCII.GetBytes(exifDate + "\0");

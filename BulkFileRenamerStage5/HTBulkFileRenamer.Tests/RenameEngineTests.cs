@@ -49,7 +49,9 @@ namespace HTBulkFileRenamer.Tests
         public void FindReplace_InvalidRegexThrows()
         {
             var o = Plain(); o.UseRegex = true; o.Find = "([";
-            Assert.ThrowsException<ArgumentException>(() => NewName(Entry("a.txt"), o));
+            // .NET throws RegexParseException, a subclass of ArgumentException; the preview catches both.
+            try { NewName(Entry("a.txt"), o); Assert.Fail("Expected an invalid pattern to throw."); }
+            catch (ArgumentException) { }
         }
 
         [TestMethod]

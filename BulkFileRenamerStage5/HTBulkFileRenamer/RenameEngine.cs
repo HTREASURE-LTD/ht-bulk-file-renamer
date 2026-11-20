@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.Win32;
 
 namespace HTBulkFileRenamer
 {
@@ -76,19 +75,10 @@ namespace HTBulkFileRenamer
 
         public const string TokenHelp = "Tokens for prefix and suffix:\n{n}  number (replaces the automatic 001_ position)\n{date}  modified date\n{created}  created date\n{taken}  photo date taken (JPEG/TIFF EXIF; modified date if a file has none)\n{parent}  folder name\nDates take a format, e.g. {taken:yyyyMMdd} or {date:yyyy-MM-dd_HHmm}.";
 
-        // Paths of 260+ characters work only when Windows long path support is on (the app's manifest opts in).
-        public static bool LongPathsEnabled = DetectLongPaths();
+        // .NET 10 file APIs handle paths of 260+ characters without Windows' LongPathsEnabled setting, so the
+        // legacy limit applies only when this is turned off (the tests cover both).
+        public static bool LongPathsEnabled = true;
         const int MaxLongPath = 32000;
-
-        static bool DetectLongPaths()
-        {
-            try
-            {
-                using (var key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\FileSystem"))
-                    return key != null && Equals(key.GetValue("LongPathsEnabled"), 1);
-            }
-            catch (Exception) { return false; }   // no permission to read: assume the legacy limit
-        }
 
         public static bool UsesNumberToken(RenameOptions o)
         {

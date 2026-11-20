@@ -1,0 +1,12 @@
+<Project>
+  <!-- HTREASURE application template (HT-Software-Template, submodule in external/): publisher, copyright and
+       version metadata for every project in this folder. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\external\HT-Software-Template\HTREASURE-Branding\IntegrationExamples\DotNet\Build\HTREASURE.Branding.props" />
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Checkout of HTREASURE-LTD/ht-software-standards (submodule in external/). -->
+    <HTStandardsRoot Condition="'$(HTStandardsRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', 'external', 'ht-software-standards'))</HTStandardsRoot>
+  </PropertyGroup>
+</Project>

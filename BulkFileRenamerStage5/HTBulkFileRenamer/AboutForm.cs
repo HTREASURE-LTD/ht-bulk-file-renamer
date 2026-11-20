@@ -1,3 +1,5 @@
+using HTREASURE.Branding;
+using HTREASURE.Branding.WinForms;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -10,9 +12,11 @@ namespace HTBulkFileRenamer
     {
         public AboutForm()
         {
-            Text = "About " + Brand.ProductName;
-            Icon = Brand.ProductIcon;
+            Text = "About " + BrandInfo.ProductName;
+            Icon = BrandWinForms.ProductIcon;
             Font = new Font("Segoe UI", 9F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             ShowInTaskbar = false;
@@ -21,13 +25,13 @@ namespace HTBulkFileRenamer
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
             var details = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Margin = new Padding(0) };
-            details.Controls.Add(MakeLabel(Brand.ProductName, ThemeManager.AccentTag, 0, new Font("Segoe UI Semibold", 15F, FontStyle.Bold)));
-            details.Controls.Add(MakeLabel(Brand.ProductDescription, ThemeManager.DimTag, 0));
-            details.Controls.Add(MakeLabel("Developed by " + Brand.Publisher, null, 14));
-            details.Controls.Add(MakeLabel("Version " + Brand.ProductVersion + "  (.NET Framework 4.6.2, " + (Environment.Is64BitProcess ? "64-bit" : "32-bit") + ")", null, 0));
-            details.Controls.Add(MakeLabel(Brand.Copyright, null, 0));
-            details.Controls.Add(MakeLabel(Brand.RegistrationLine, ThemeManager.DimTag, 14));
-            details.Controls.Add(MakeLabel(Brand.RegisteredAddress, ThemeManager.DimTag, 0));
+            details.Controls.Add(MakeLabel(BrandInfo.ProductName, ThemeManager.AccentTag, 0, new Font("Segoe UI Semibold", 15F, FontStyle.Bold)));
+            details.Controls.Add(MakeLabel(BrandInfo.ProductDescription, ThemeManager.DimTag, 0));
+            details.Controls.Add(MakeLabel("Developed by " + BrandInfo.Publisher, null, 14));
+            details.Controls.Add(MakeLabel("Version " + BrandInfo.ProductVersion + "  (" + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription + ", " + (Environment.Is64BitProcess ? "64-bit" : "32-bit") + ")", null, 0));
+            details.Controls.Add(MakeLabel(BrandInfo.Copyright, null, 0));
+            // No office address is shown (HTREASURE decision); the company number identifies the company.
+            details.Controls.Add(MakeLabel(BrandInfo.RegistrationLine, ThemeManager.DimTag, 14));
             details.Controls.Add(MakeLabel("Files are renamed only after you confirm, and every rename batch can be undone. "
                 + "No telemetry is collected and no internet connection is needed.", ThemeManager.DimTag, 14));
             var website = new LinkLabel { Text = "www.htreasure.com", AutoSize = true, Margin = new Padding(0, 10, 0, 2) };
@@ -37,8 +41,8 @@ namespace HTBulkFileRenamer
             licence.LinkClicked += (s, e) => MainForm.ShowLicence(this);
             details.Controls.Add(licence);
 
-            var icon = new BrandImageBox { Image = Brand.ProductImage, Size = new Size(64, 64), Margin = new Padding(0, 4, 20, 0) };
-            var logo = new BrandImageBox { Image = Brand.LogoFor(ThemeManager.Current.IsDark), ImageAlign = ContentAlignment.MiddleLeft, Size = new Size(200, 42), Anchor = AnchorStyles.Left, Margin = new Padding(0) };
+            var icon = new BrandImageBox { Image = BrandWinForms.ProductImage, Size = new Size(64, 64), Margin = new Padding(0, 4, 20, 0) };
+            var logo = new BrandImageBox { Image = BrandWinForms.GetLogo(ThemeManager.Current.IsDark ? LogoVariant.HorizontalColorDark : LogoVariant.HorizontalColor, 1024), ImageAlign = ContentAlignment.MiddleLeft, Size = new Size(200, 42), Anchor = AnchorStyles.Left, Margin = new Padding(0) };
             var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Size = new Size(92, 30), Anchor = AnchorStyles.Right, Margin = new Padding(24, 0, 0, 0), Tag = ThemeManager.PrimaryTag };
 
             var bottom = new TableLayoutPanel { ColumnCount = 2, RowCount = 1, AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 20, 0, 0), Padding = new Padding(0, 14, 0, 0) };

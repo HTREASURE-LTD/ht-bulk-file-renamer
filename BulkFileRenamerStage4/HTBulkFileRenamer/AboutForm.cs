@@ -28,7 +28,6 @@ namespace HTBulkFileRenamer
             details.Controls.Add(MakeLabel(Brand.Copyright, null, Brand.DeepNavy, 14));
             details.Controls.Add(MakeLabel("Publisher: " + Brand.Publisher, null, Brand.MutedText, 14));
             details.Controls.Add(MakeLabel(Brand.RegistrationLine, null, Brand.MutedText, 0));
-            details.Controls.Add(MakeLabel(Brand.RegisteredAddress, null, Brand.MutedText, 0));
 
             var icon = new BrandImageBox { Image = Brand.ProductImage, Size = new Size(64, 64), Margin = new Padding(0, 4, 20, 0) };
             var logo = new BrandImageBox { Image = Brand.Logo, ImageAlign = ContentAlignment.MiddleLeft, Size = new Size(200, 42), Anchor = AnchorStyles.Left, Margin = new Padding(0) };

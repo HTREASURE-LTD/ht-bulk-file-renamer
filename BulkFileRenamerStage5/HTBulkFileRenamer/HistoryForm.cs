@@ -1,3 +1,5 @@
+using HTREASURE.Branding;
+using HTREASURE.Branding.WinForms;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,13 +22,15 @@ namespace HTBulkFileRenamer
         public HistoryForm(Func<HistoryBatch, IWin32Window, bool> undo)
         {
             this.undo = undo;
-            Text = "Rename history — " + Brand.ProductName;
-            Icon = Brand.ProductIcon;
+            Text = "Rename history — " + BrandInfo.ProductName;
+            Icon = BrandWinForms.ProductIcon;
             Size = new Size(920, 620);
             MinimumSize = new Size(640, 420);
             StartPosition = FormStartPosition.CenterParent;
             ShowInTaskbar = false;
             Font = new Font("Segoe UI", 9F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(96F, 96F);
 
             summary.Dock = DockStyle.Top; summary.Height = 34; summary.Padding = new Padding(12, 9, 12, 0);
 
