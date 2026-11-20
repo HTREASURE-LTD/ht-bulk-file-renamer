@@ -6,7 +6,7 @@
 #define ProductId      "bulk-file-renamer"
 #define ProductName    "HT Bulk File Renamer"
 #define ProductExe     "HTBulkFileRenamer.exe"
-#define ProductVersion "0.6.0"
+#define ProductVersion "0.6.1"
 #define Publisher      "HTREASURE LTD"
 #define CopyrightYear  GetDateTimeString('yyyy', '', '')
 #define Copyright      "Copyright © " + CopyrightYear + " HTREASURE LTD. All rights reserved."
@@ -38,6 +38,8 @@ Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x86 x64
+; End-User Licence Agreement page: the user must accept it before installing.
+LicenseFile=..\..\LICENSE
 
 ; Branding: product icon for the setup .exe, HTREASURE wizard artwork at 100%, 150% and 200% scaling
 SetupIconFile=..\HTBulkFileRenamer\Branding\HT-{#ProductId}.ico
@@ -59,9 +61,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#ExePath}"; DestDir: "{app}"; Flags: ignoreversion
 ; Runtime settings (long path handling) live in the .exe.config next to the exe.
 Source: "{#ExePath}.config"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#ProductName}"; Filename: "{app}\{#ProductExe}"
+Name: "{group}\Licence Agreement"; Filename: "{app}\LICENSE.txt"
 Name: "{autodesktop}\{#ProductName}"; Filename: "{app}\{#ProductExe}"; Tasks: desktopicon
 
 [Run]

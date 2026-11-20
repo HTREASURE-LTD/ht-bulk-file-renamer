@@ -1,0 +1,2 @@
+b413dcc57d04b0e089e6eee177a3854d791bb51f4289b7a2d7f5f35eadda9c35  HTBulkFileRenamer-0.6.0-Portable.zip
+83206cbbfa2250bbaa39d323d479df7f2c46a7c461afed466208500507fb33a2  HTBulkFileRenamer-0.6.0-Setup.exe

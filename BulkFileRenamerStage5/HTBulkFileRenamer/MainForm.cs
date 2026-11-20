@@ -114,6 +114,8 @@ namespace HTBulkFileRenamer
             viewMenu.DropDownItems.Add(themeMenu);
 
             var helpMenu = new ToolStripMenuItem("&Help");
+            helpMenu.DropDownItems.Add("&Licence Agreement", null, (s, e) => ShowLicence(this));
+            helpMenu.DropDownItems.Add(new ToolStripSeparator());
             helpMenu.DropDownItems.Add("&About " + Brand.ProductName, null, (s, e) => { using (var about = new AboutForm()) about.ShowDialog(this); });
             menu.Items.AddRange(new ToolStripItem[] { fileMenu, listMenu, renameMenu, viewMenu, helpMenu });
             MainMenuStrip = menu;
@@ -361,6 +363,10 @@ namespace HTBulkFileRenamer
             files.Clear();
             ClearSortGlyph();
             RefreshPreview();
+        }
+        internal static void ShowLicence(IWin32Window owner)
+        {
+            using (var licence = new LicenceForm()) licence.ShowDialog(owner);
         }
         internal static void OpenWebsite(IWin32Window owner)
         {

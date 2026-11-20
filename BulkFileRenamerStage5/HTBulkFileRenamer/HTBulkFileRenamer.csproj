@@ -10,7 +10,7 @@
     <Product>HT Bulk File Renamer</Product>
     <AssemblyTitle>HT Bulk File Renamer</AssemblyTitle>
     <Description>Rename many files at once with previewed, reversible rules.</Description>
-    <Version>0.6.0</Version>
+    <Version>0.6.1</Version>
     <Company>HTREASURE LTD</Company>
     <Authors>HTREASURE LTD</Authors>
     <!-- Year comes from the build date so the copyright line never goes stale. -->
@@ -21,6 +21,8 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Branding\*.ico;Branding\*.png" LogicalName="Branding.%(Filename)%(Extension)" />
+    <!-- End-User Licence Agreement (repository root LICENSE), shown by Help > Licence Agreement. -->
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="Branding.LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net462" Version="1.0.3" PrivateAssets="all" />

@@ -63,6 +63,19 @@ namespace HTBulkFileRenamer
                 : logo ?? (logo = LoadImage("HTREASURE-logo-horizontal-color-1024w.png"));
         }
 
+        // End-User Licence Agreement: the repository's LICENSE file, embedded at build time.
+        static string licenceText;
+        public static string LicenceText
+        {
+            get
+            {
+                if (licenceText == null)
+                    using (var reader = new StreamReader(Open("LICENSE.txt"), System.Text.Encoding.UTF8))
+                        licenceText = reader.ReadToEnd();
+                return licenceText;
+            }
+        }
+
         static Stream Open(string name)
         {
             var stream = App.GetManifestResourceStream("Branding." + name);

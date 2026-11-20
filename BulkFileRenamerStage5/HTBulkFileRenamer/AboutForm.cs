@@ -33,6 +33,9 @@ namespace HTBulkFileRenamer
             var website = new LinkLabel { Text = "www.htreasure.com", AutoSize = true, Margin = new Padding(0, 10, 0, 2) };
             website.LinkClicked += (s, e) => MainForm.OpenWebsite(this);
             details.Controls.Add(website);
+            var licence = new LinkLabel { Text = "End-User Licence Agreement", AutoSize = true, Margin = new Padding(0, 4, 0, 2) };
+            licence.LinkClicked += (s, e) => MainForm.ShowLicence(this);
+            details.Controls.Add(licence);
 
             var icon = new BrandImageBox { Image = Brand.ProductImage, Size = new Size(64, 64), Margin = new Padding(0, 4, 20, 0) };
             var logo = new BrandImageBox { Image = Brand.LogoFor(ThemeManager.Current.IsDark), ImageAlign = ContentAlignment.MiddleLeft, Size = new Size(200, 42), Anchor = AnchorStyles.Left, Margin = new Padding(0) };

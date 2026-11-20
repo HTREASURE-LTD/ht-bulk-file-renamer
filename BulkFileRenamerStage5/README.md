@@ -1,4 +1,4 @@
-# HT Bulk File Renamer — version 0.6.0 (source release)
+# HT Bulk File Renamer — version 0.6.1 (source release)
 
 An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 
@@ -9,6 +9,9 @@ An HTREASURE LTD product. Copyright © 2026 HTREASURE LTD. All rights reserved.
 - Save/load XML presets (`.htpreset`), rename/undo history, progress and cancel-before-commit.
 - Staged rename with best-effort rollback on failure.
 - Inno Setup installer source script and build instructions.
+
+### New in 0.6.1 — End-User Licence Agreement
+- HTREASURE LTD End-User Licence Agreement (`LICENSE`): accepted on the installer's licence page, installed as `LICENSE.txt` with a Start-menu shortcut, shown in **Help > Licence Agreement** and linked from **About**, and included in the portable zip. See "Licensing" below.
 
 ### New in 0.6.0 — HTREASURE design template (shared with HT ISO Ripper)
 - **Same look and layout as HT ISO Ripper**: blue header banner (product icon, name, description, `www.htreasure.com` link), menu bar below it, settings in captioned group boxes with a label column (**Name Rules**; **Numbering, Case and Extension**; **Files**), standard Windows buttons, and one accent-coloured primary button.
@@ -109,7 +112,12 @@ Company identity and assets come from the HTREASURE LTD brand kit (`C:\HTSoftwar
 18. With long paths on, rename a file in a folder deeper than 260 characters; with them off, confirm the preview refuses it.
 
 ## Installer
-Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode, then compile `Installer\HTBulkFileRenamer.iss` (version 0.6.0). The installer requires .NET Framework 4.6.2 on the target PC; it does not install the runtime automatically.
+Install Inno Setup from https://jrsoftware.org/isinfo.php, build in Release mode, then compile `Installer\HTBulkFileRenamer.iss` (version 0.6.1). The installer requires .NET Framework 4.6.2 on the target PC; it does not install the runtime automatically.
 
 ## Licensing
+**End-User Licence Agreement:** `LICENSE` at the repository root (HTREASURE LTD EULA v1.0, based on the HT ISO Ripper agreement: free for personal, non-commercial use; other use needs a written licence). It is the single source for every copy:
+- the installer's licence page, which must be accepted before installing, plus `LICENSE.txt` in the install folder and a Start-menu shortcut;
+- **Help > Licence Agreement** and the link in **About**, read from a copy embedded in the exe;
+- `LICENSE.txt` in the portable zip.
+
 This project is supplied as editable starter source for your own development. Check the licences of all NuGet dependencies, installer tooling, icons and other assets before commercial redistribution. Do not market this build as fully tested or production-ready without completing acceptance tests.
